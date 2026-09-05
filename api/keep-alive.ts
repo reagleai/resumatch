@@ -38,14 +38,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       auth: { persistSession: false },
     });
 
-    // Lightweight query: fetch a single row from any public table.
-    // If no suitable table exists, Supabase will still respond — the important
-    // thing is that the project receives a request that counts as "activity".
-    const { error } = await supabase.from('jobs').select('id').limit(1);
+    // Lightweight query against a table that actually exists. The name matters:
+    // PostgREST resolves an unknown table from its cached schema and answers
+    // without ever reaching Postgres, so a typo'd ping does NOT count as
+    // database activity and the project pauses anyway. This previously read
+    // `jobs`, which this schema has never had — every table is `resumatch_*`.
+    const { error } = await supabase.from('resumatch_jobs').select('id').limit(1);
 
     if (error) {
-      // Log but don't fail — the HTTP round-trip itself counts as activity.
-      console.warn('[keep-alive] Supabase query warning:', error.message);
+      // Fail loudly. A keep-alive that reports success while doing nothing is
+      // worse than none at all: the cron stays green right up until the project
+      // is suspended.
+      console.error('[keep-alive] Supabase ping failed:', error.message);
+      return res.status(500).json({ ok: false, error: error.message });
     }
 
     return res.status(200).json({
