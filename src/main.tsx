@@ -2,7 +2,6 @@ import React, { useState, lazy, Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LandingPage } from '@/components/landing/LandingPage'
-import { isReviewMode } from '@/lib/reviewMode'
 import './styles/globals.css'
 
 // Lazy-load App so the Supabase client and all tool-gated modules
@@ -20,9 +19,19 @@ const queryClient = new QueryClient({
   },
 })
 
+// Mirrors isReviewMode() in @/lib/reviewMode, inlined deliberately. Importing
+// that module here would pull the review fixtures into the entry chunk, so the
+// landing page would preload ~34 kB that production can never execute. The
+// import.meta.env.DEV guard is replaced with `false` at build time, leaving
+// nothing behind in the production bundle.
+function isDevReviewSession(): boolean {
+  if (!import.meta.env.DEV) return false
+  return new URLSearchParams(window.location.search).get('review') === '1'
+}
+
 function AppEntry() {
   const [isUnlocked, setIsUnlocked] = useState(
-    () => (import.meta.env.DEV && isReviewMode()) || sessionStorage.getItem(SESSION_KEY) === 'true'
+    () => isDevReviewSession() || sessionStorage.getItem(SESSION_KEY) === 'true'
   )
 
   if (isUnlocked) {
