@@ -1,5 +1,11 @@
-import { useState } from 'react'
-import { Eye, Trash2, Download, Loader2 } from 'lucide-react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
+import { Download, Eye, Loader2, Trash2 } from 'lucide-react'
 import type { SavedResumeWithPdf } from '@/types'
 import { timeAgo } from '@/lib/utils'
 
@@ -14,14 +20,20 @@ interface HistoryCardProps {
 export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: HistoryCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const deletePromptId = useId()
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null)
+  const confirmDeleteRef = useRef<HTMLButtonElement>(null)
   const pdf = resume.resume_pdfs?.[0] ?? null
   const isPdf = resume.format === 'pdf'
   const createdAt = new Date(resume.created_at)
 
-  // Truncate JD for preview
   const jdSnippet = resume.job_description
     ? resume.job_description.substring(0, 80) + (resume.job_description.length > 80 ? '…' : '')
     : null
+
+  useEffect(() => {
+    if (confirmDelete) confirmDeleteRef.current?.focus()
+  }, [confirmDelete])
 
   const handleDeleteClick = () => {
     if (confirmDelete || isDeleting) return
@@ -35,269 +47,162 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
 
   const handleCancel = () => {
     setConfirmDelete(false)
+    requestAnimationFrame(() => deleteTriggerRef.current?.focus())
+  }
+
+  const handleDownload = async () => {
+    if (!pdf || isDownloading) return
+
+    setIsDownloading(true)
+    try {
+      const response = await fetch(pdf.public_url)
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = resume.filename || 'tailored-resume.pdf'
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      window.open(pdf.public_url, '_blank', 'noopener,noreferrer')
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
   return (
-    <div
-      className="history-card"
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 'var(--space-4)',
-        background: isDeleting ? 'var(--color-surface-2)' : 'var(--color-surface)',
-        border: '1px solid var(--color-divider)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-4)',
-        boxShadow: 'var(--shadow-sm)',
-        animation: `cardIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both`,
-        animationDelay: `${index * 60}ms`,
-        opacity: isDeleting ? 0.5 : 1,
-        transition: 'opacity 0.2s ease, background 0.2s ease',
-        position: 'relative' as const,
-      }}
+    <article
+      className={`history-card${isDeleting ? ' is-deleting' : ''}${confirmDelete ? ' is-confirming-delete' : ''}`}
+      role="listitem"
+      aria-busy={isDeleting}
+      style={{ '--history-row-index': index } as CSSProperties}
     >
-      {/* Format badge */}
-      <div
-        style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: 'var(--radius-full)',
-          background: isPdf ? 'var(--color-error-highlight)' : 'var(--color-primary-highlight)',
-          color: isPdf ? 'var(--color-error)' : 'var(--color-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.6rem',
-          fontWeight: 800,
-          fontFamily: 'var(--font-mono)',
-          flexShrink: 0,
-          letterSpacing: '0.5px', wordSpacing: '0.1em',
-          marginTop: '2px',
-        }}
-      >
-        {isPdf ? 'PDF' : 'HTML'}
-      </div>
+      <div className="history-card-main">
+        <span className={`history-format-badge ${isPdf ? 'is-pdf' : 'is-html'}`}>
+          {isPdf ? 'PDF' : 'HTML'}
+        </span>
 
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 'var(--text-sm)',
-            fontWeight: 500,
-            whiteSpace: 'nowrap' as const,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
+        <button
+          type="button"
+          className="history-record-trigger"
+          onClick={onView}
+          disabled={isDeleting}
+          aria-label={`Preview ${resume.role_title} resume for ${resume.company_name}`}
         >
-          {resume.role_title} · {resume.company_name}
-        </div>
-        <div
-          style={{
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-faint)',
-            marginTop: '2px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            flexWrap: 'wrap' as const,
-          }}
-        >
-          <span>{timeAgo(createdAt)}</span>
-          {pdf && (
-            <span
-              style={{
-                background: 'var(--color-success-highlight)',
-                color: 'var(--color-success)',
-                padding: '1px 6px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.6rem',
-                fontWeight: 500,
-              }}
-            >
-              PDF saved
-            </span>
-          )}
-        </div>
-        {jdSnippet && (
-          <div
-            style={{
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-text-muted)',
-              marginTop: '4px',
-              whiteSpace: 'nowrap' as const,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {jdSnippet}
-          </div>
-        )}
-      </div>
+          <span className="history-record-title">
+            <span className="history-role-title">{resume.role_title}</span>
+            <span className="history-title-separator" aria-hidden="true">·</span>
+            <span className="history-company-name">{resume.company_name}</span>
+          </span>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 'var(--space-1)', flexShrink: 0, alignItems: 'center' }}>
-        {confirmDelete ? (
-          /* ── Inline delete confirmation ─────────────────── */
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              animation: 'pageIn 0.2s ease',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-muted)',
-                whiteSpace: 'nowrap' as const,
-              }}
-            >
-              Delete?
-            </span>
+          <span className="history-record-meta">
+            <time dateTime={resume.created_at} title={createdAt.toLocaleString()}>
+              {timeAgo(createdAt)}
+            </time>
+            {pdf && <span className="history-pdf-status">PDF saved</span>}
+          </span>
+
+          {jdSnippet && <span className="history-jd-snippet">{jdSnippet}</span>}
+        </button>
+
+        {!confirmDelete && (
+          <div className="history-card-actions" role="group" aria-label="Resume actions">
             <button
-              onClick={handleConfirm}
-              disabled={isDeleting}
-              style={{
-                fontSize: 'var(--text-xs)',
-                fontWeight: 500,
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--color-error)',
-                color: '#fff',
-                border: 'none',
-                cursor: isDeleting ? 'not-allowed' : 'pointer',
-                minHeight: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'opacity 0.2s',
-              }}
-            >
-              {isDeleting ? (
-                <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
-              ) : (
-                'Yes'
-              )}
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={isDeleting}
-              style={{
-                fontSize: 'var(--text-xs)',
-                fontWeight: 500,
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'transparent',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
-                cursor: 'pointer',
-                minHeight: '28px',
-              }}
-            >
-              No
-            </button>
-          </div>
-        ) : (
-          /* ── Action buttons ─────────────────────────────── */
-          <>
-            <button
+              type="button"
               onClick={onView}
-              aria-label="View resume"
-              title="View"
-              className="history-action-btn"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--color-text-muted)',
-                transition:
-                  'background var(--transition-interactive), color var(--transition-interactive)',
-              }}
+              disabled={isDeleting}
+              aria-label="Preview resume"
+              title="Preview resume"
+              className="history-action-btn history-view-action"
             >
-              <Eye size={16} />
+              <Eye size={16} aria-hidden="true" />
+              <span className="history-action-label">Preview</span>
             </button>
 
             {pdf && (
               <button
-                onClick={async () => {
-                  if (isDownloading) return
-                  setIsDownloading(true)
-                  try {
-                    const res = await fetch(pdf.public_url)
-                    const blob = await res.blob()
-                    const blobUrl = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = blobUrl
-                    a.download = resume.filename || 'tailored-resume.pdf'
-                    document.body.appendChild(a)
-                    a.click()
-                    document.body.removeChild(a)
-                    URL.revokeObjectURL(blobUrl)
-                  } catch {
-                    // Fallback: open in new tab if fetch fails
-                    window.open(pdf.public_url, '_blank')
-                  } finally {
-                    setIsDownloading(false)
-                  }
-                }}
-                disabled={isDownloading}
-                aria-label="Download PDF"
+                type="button"
+                onClick={handleDownload}
+                disabled={isDownloading || isDeleting}
+                aria-label={isDownloading ? 'Downloading PDF' : 'Download PDF'}
                 title="Download PDF"
-                className="history-action-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--color-text-muted)',
-                  transition:
-                    'background var(--transition-interactive), color var(--transition-interactive)',
-                  cursor: isDownloading ? 'wait' : 'pointer',
-                  opacity: isDownloading ? 0.5 : 1,
-                }}
+                className="history-action-btn history-download-action"
               >
                 {isDownloading ? (
-                  <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                  <Loader2 className="history-action-spinner" size={16} aria-hidden="true" />
                 ) : (
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                 )}
+                <span className="history-action-label">
+                  {isDownloading ? 'Downloading…' : 'Download'}
+                </span>
               </button>
             )}
 
             <button
+              ref={deleteTriggerRef}
+              type="button"
               onClick={handleDeleteClick}
               disabled={isDeleting}
               aria-label="Delete resume"
-              title="Delete"
-              className="history-action-btn"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-md)',
-                color: isDeleting ? 'var(--color-text-faint)' : 'var(--color-error)',
-                transition:
-                  'background var(--transition-interactive), color var(--transition-interactive)',
-                cursor: isDeleting ? 'not-allowed' : 'pointer',
-              }}
+              aria-controls={deletePromptId}
+              title="Delete resume"
+              className="history-action-btn history-delete-action"
             >
               {isDeleting ? (
-                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 className="history-action-spinner" size={16} aria-hidden="true" />
               ) : (
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               )}
+              <span className="history-action-label">Delete</span>
             </button>
-          </>
+          </div>
         )}
       </div>
-    </div>
+
+      {confirmDelete && (
+        <div
+          id={deletePromptId}
+          className="history-delete-confirmation"
+          role="group"
+          aria-labelledby={`${deletePromptId}-label`}
+          onKeyDown={(event) => { if (event.key === 'Escape') handleCancel() }}
+        >
+          <div className="history-delete-copy">
+            <strong id={`${deletePromptId}-label`}>Delete this resume?</strong>
+            <span>
+              {pdf
+                ? 'The saved resume and its PDF will be removed.'
+                : 'The saved resume will be removed.'}
+            </span>
+          </div>
+          <div className="history-delete-actions">
+            <button
+              ref={confirmDeleteRef}
+              type="button"
+              onClick={handleConfirm}
+              disabled={isDeleting}
+              className="history-confirm-delete-btn"
+            >
+              {isDeleting && (
+                <Loader2 className="history-action-spinner" size={14} aria-hidden="true" />
+              )}
+              Delete resume
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={isDeleting}
+              className="history-cancel-delete-btn"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </article>
   )
 }

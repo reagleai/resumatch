@@ -8,12 +8,9 @@ interface ModalProps {
   children: ReactNode
 }
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
-
 export function Modal({ open, onClose, title, children }: ModalProps) {
   const titleId = useId()
-  const panelRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   // Element focused before the dialog opened, so we can restore it on close.
   const previouslyFocused = useRef<HTMLElement | null>(null)
@@ -22,133 +19,55 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
-  // Focus management + key handling. Keyed on `open` only so focus isn't
-  // stolen back to the trigger on unrelated parent re-renders.
+  // Native modal dialogs make the background inert and contain keyboard
+  // focus, including inside embedded resume documents.
   useEffect(() => {
     if (!open) return
-
+    const dialog = dialogRef.current
+    if (!dialog) return
     previouslyFocused.current = document.activeElement as HTMLElement | null
-    // Move focus into the dialog (the close button is always present).
-    closeRef.current?.focus()
-
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCloseRef.current()
-        return
-      }
-      if (e.key !== 'Tab') return
-
-      // Trap focus within the dialog panel.
-      const panel = panelRef.current
-      if (!panel) return
-      const focusables = Array.from(
-        panel.querySelectorAll<HTMLElement>(FOCUSABLE)
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement)
-      if (focusables.length === 0) {
-        e.preventDefault()
-        closeRef.current?.focus()
-        return
-      }
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      const active = document.activeElement
-      if (e.shiftKey && (active === first || !panel.contains(active))) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-
-    document.addEventListener('keydown', handleKey)
+    dialog.showModal()
+    closeRef.current?.focus({ preventScroll: true })
     return () => {
-      document.removeEventListener('keydown', handleKey)
-      // Restore focus to the trigger when the dialog closes/unmounts.
-      previouslyFocused.current?.focus?.()
+      dialog.close()
+      previouslyFocused.current?.focus?.({ preventScroll: true })
     }
   }, [open])
 
   if (!open) return null
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
       className="modal-backdrop"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 300,
-        background: 'rgba(0,0,0,0.55)',
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        animation: 'fadeIn 200ms ease',
-      }}
+      aria-labelledby={titleId}
+      onCancel={(event) => { event.preventDefault(); onCloseRef.current() }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        style={{
-          width: '100%',
-          maxWidth: '800px',
-          height: '90vh',
-          background: 'var(--color-bg)',
-          borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideUp 280ms cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
+        className="modal-panel"
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 'var(--space-4) var(--space-6)',
-            borderBottom: '1px solid var(--color-divider)',
-            flexShrink: 0,
-          }}
-        >
+        <div className="modal-header">
           <h2
             id={titleId}
-            style={{
-              fontSize: 'var(--text-sm)',
-              fontWeight: 500,
-              fontFamily: 'var(--font-body)',
-              lineHeight: 1.4,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
+            className="modal-title"
           >
             {title}
           </h2>
           <button
             ref={closeRef}
+            type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '44px',
-              height: '44px',
-              flexShrink: 0,
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--color-text-muted)',
-              transition: 'background var(--transition-interactive), color var(--transition-interactive)',
-            }}
+            className="modal-close"
           >
-            <X size={20} />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div className="modal-content">
           {children}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

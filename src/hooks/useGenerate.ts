@@ -3,6 +3,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '@/store/appStore'
 import { useToast } from '@/hooks/useToast'
 import { HISTORY_QUERY_KEY } from '@/hooks/useResumeHistory'
+import { LOADING_STEPS } from '@/lib/constants'
+import {
+  createReviewGenerationFixture,
+  isReviewMode,
+  prependReviewHistoryFixture,
+} from '@/lib/reviewMode'
 import type { GenerateInput, Job } from '@/types'
 
 /** Minimum time between consecutive generation starts (ms). */
@@ -63,6 +69,33 @@ export function useGenerate() {
     }
 
     try {
+      if (import.meta.env.DEV && isReviewMode()) {
+        for (let step = 1; step < LOADING_STEPS.length; step += 1) {
+          await sleep(240)
+          if (genId !== generationIdRef.current) return
+          store.setLoadingStep(step)
+        }
+
+        const { result, history } = await createReviewGenerationFixture(payload)
+        if (genId !== generationIdRef.current) return
+
+        store.setGeneratorResult(result)
+        store.addHistoryEntry({
+          timestamp: result.timestamp,
+          companyname: result.companyname,
+          roletitle: result.roletitle,
+          filename: result.filename,
+          html: result.html,
+          format: result.format,
+          pdfBlobUrl: result.pdfBlobUrl,
+        })
+
+        await prependReviewHistoryFixture(history)
+        queryClient.invalidateQueries({ queryKey: HISTORY_QUERY_KEY })
+        toast(`Resume generated for ${result.roletitle} at ${result.companyname} ✓`, 'success')
+        return
+      }
+
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

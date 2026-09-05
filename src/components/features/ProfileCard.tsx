@@ -1,4 +1,5 @@
 import { CheckCircle } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 /**
  * Compact profile-status banner shown on the Generator page.
@@ -6,52 +7,20 @@ import { CheckCircle } from 'lucide-react'
  * Profile editing is available via the sidebar/nav Profile page.
  */
 export function ProfileCard() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const reviewSuffix = import.meta.env.DEV && new URLSearchParams(location.search).get('review') === '1'
+    ? '?review=1'
+    : ''
+
   return (
-    <div
-      className="profile-status-card"
-      role="status"
-      style={{
-        background: 'var(--color-success-highlight)',
-        border: '1px solid var(--color-success)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-3) var(--space-4)',
-        marginBottom: 'var(--space-6)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--space-3)',
-        animation: 'cardIn 280ms cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
-    >
-      {/* Decorative success icon - paired with visible text, so aria-hidden */}
-      <CheckCircle
-        size={20}
-        aria-hidden="true"
-        style={{
-          color: 'var(--color-success)',
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontWeight: 500,
-            fontSize: 'var(--text-sm)',
-            lineHeight: 1.3,
-            color: 'var(--color-text)',
-          }}
-        >
-          Profile setup complete
-        </div>
-        <div
-          style={{
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-            marginTop: '2px',
-          }}
-        >
-          Ready to generate resume
-        </div>
+    <div className="profile-status-card" role="status">
+      <CheckCircle size={18} aria-hidden="true" />
+      <div className="profile-status-copy">
+        <strong>Profile ready</strong>
+        <span>Your saved resume will be used for this run.</span>
       </div>
+      <button type="button" onClick={() => navigate(`/profile${reviewSuffix}`)}>Edit</button>
     </div>
   )
 }

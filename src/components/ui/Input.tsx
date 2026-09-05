@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes } from 'react'
+import { forwardRef, useId, type InputHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -8,24 +8,33 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, id, error, helperText, required, className, ...props }, ref) => {
+  ({ label, id, error, helperText, required, className, 'aria-describedby': ariaDescribedBy, ...props }, ref) => {
+    const generatedId = useId()
+    const fieldId = id ?? generatedId
+    const messageId = `${fieldId}-${error ? 'error' : 'helper'}`
+    const describedBy = [ariaDescribedBy, (error || helperText) ? messageId : null]
+      .filter(Boolean)
+      .join(' ') || undefined
+
     return (
       <div className={cn('field-group', error && 'has-error')}>
         {label && (
-          <label className="field-label" htmlFor={id}>
+          <label className="field-label" htmlFor={fieldId}>
             {label}
-            {required && <span className="field-required">*</span>}
+            {required && <span className="field-required" aria-hidden="true">*</span>}
           </label>
         )}
         <input
           ref={ref}
-          id={id}
+          id={fieldId}
           className={cn('field-input', error && 'has-error', className)}
           required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           {...props}
         />
-        {error && <span className="field-error-msg">{error}</span>}
-        {!error && helperText && <span className="field-helper">{helperText}</span>}
+        {error && <span id={messageId} className="field-error-msg" role="alert">{error}</span>}
+        {!error && helperText && <span id={messageId} className="field-helper">{helperText}</span>}
       </div>
     )
   }

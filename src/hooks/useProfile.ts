@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import {
+  getReviewProfileFixture,
+  isReviewMode,
+  saveReviewProfileFixture,
+} from '@/lib/reviewMode'
 import type { ProfileState } from '@/types'
 
 /** Supabase row shape for the resumatch_profiles table */
@@ -48,6 +52,9 @@ const PROFILE_QUERY_KEY = ['profile'] as const
  * we read the first (and only) row from the profiles table.
  */
 async function fetchProfile(): Promise<ProfileState | null> {
+  if (import.meta.env.DEV && isReviewMode()) return getReviewProfileFixture()
+
+  const { supabase } = await import('@/lib/supabase')
   const { data, error } = await supabase
     .from('resumatch_profiles')
     .select('first_name, last_name, base_resume_html, maxgrowthpct, companynamefallback, roletitlefallback')
@@ -69,6 +76,9 @@ async function fetchProfile(): Promise<ProfileState | null> {
 const PROFILE_ID = '00000000-0000-0000-0000-000000000001'
 
 async function upsertProfile(profile: ProfileState): Promise<ProfileState> {
+  if (import.meta.env.DEV && isReviewMode()) return saveReviewProfileFixture(profile)
+
+  const { supabase } = await import('@/lib/supabase')
   const payload = {
     id: PROFILE_ID,
     ...profileToRow(profile),

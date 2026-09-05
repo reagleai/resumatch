@@ -1,14 +1,14 @@
-import { useState } from 'react'
-import DOMPurify from 'dompurify'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import { useResumeHistoryQuery, useDeleteResumeMutation } from '@/hooks/useResumeHistory'
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { HistoryCard } from '@/components/features/HistoryCard'
+import { ResumeDocument } from '@/components/features/ResumeDocument'
+import { getReviewParam, isReviewMode } from '@/lib/reviewMode'
 import type { SavedResumeWithPdf } from '@/types'
 
 export function HistoryPage() {
@@ -16,10 +16,30 @@ export function HistoryPage() {
   const { toast } = useToast()
   const { data: resumes, isLoading, isError, refetch } = useResumeHistoryQuery()
   const deleteMutation = useDeleteResumeMutation()
-
   const [viewingResume, setViewingResume] = useState<SavedResumeWithPdf | null>(null)
 
-  // ── Delete handler ──────────────────────────────────────────────
+  const reviewState = import.meta.env.DEV && isReviewMode() ? getReviewParam('state') : null
+  const reviewSuffix = import.meta.env.DEV && isReviewMode() ? '?review=1' : ''
+  const pageIsLoading = reviewState === 'loading' || (reviewState !== 'error' && isLoading)
+  const pageIsError = reviewState === 'error' || (reviewState !== 'loading' && isError)
+  const visibleResumes = resumes ?? []
+  const count = visibleResumes.length
+  const reviewPreviewOpened = useRef(false)
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isReviewMode() || reviewPreviewOpened.current || !resumes?.length) return
+    const requested = getReviewParam('preview')
+    if (!requested) return
+    const resume = resumes.find((item) => item.id === requested) ?? resumes[0]
+    const preview = requested === 'pdf-only'
+      ? { ...resume, resume_html: '' }
+      : requested === 'no-file'
+        ? { ...resume, resume_html: '', resume_pdfs: [] }
+        : resume
+    reviewPreviewOpened.current = true
+    setViewingResume(preview)
+  }, [resumes])
+
   const handleDelete = (resume: SavedResumeWithPdf) => {
     const pdf = resume.resume_pdfs?.[0] ?? null
     deleteMutation.mutate(
@@ -35,132 +55,110 @@ export function HistoryPage() {
     )
   }
 
-  const count = resumes?.length ?? 0
-
   return (
-    <div
-      style={{
-        maxWidth: '720px',
-        margin: '0 auto',
-        padding: 'var(--space-8) var(--space-8)',
-        animation: 'pageIn 0.6s ease',
-      }}
+    <section
+      className="app-page history-page"
+      aria-labelledby="history-page-title"
+      aria-busy={pageIsLoading}
     >
-      {/* ── Header ────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          marginBottom: 'var(--space-6)',
-          gap: 'var(--space-4)',
-          flexWrap: 'wrap' as const,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 'var(--text-xl)',
-              fontWeight: 500,
-              lineHeight: 1.15,
-              marginBottom: 'var(--space-1)',
-            }}
-          >
+      <header className="app-page-header page-header history-page-header">
+        <div className="page-header-copy">
+          <h1 id="history-page-title" className="page-title">
             Resume History
           </h1>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          <p className="page-description">
             Previously generated resumes, persisted across sessions.
           </p>
         </div>
-        {!isLoading && !isError && count > 0 && (
-          <Badge>
-            {count} {count === 1 ? 'resume' : 'resumes'}
-          </Badge>
+
+        {!pageIsLoading && !pageIsError && count > 0 && (
+          <span
+            className="history-count-badge"
+            aria-label={`${count} saved ${count === 1 ? 'resume' : 'resumes'}`}
+          >
+            <strong>{count}</strong>
+            <span>{count === 1 ? 'resume' : 'resumes'}</span>
+          </span>
+        )}
+      </header>
+
+      <div className="history-page-content">
+        {pageIsLoading && (
+          <div className="history-list history-loading-list" role="status">
+            <span className="sr-only">Loading resume history…</span>
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="history-card history-card-skeleton" aria-hidden="true">
+                <div className="history-card-main">
+                  <Skeleton variant="avatar" width="40px" height="40px" />
+                  <div className="history-skeleton-copy">
+                    <Skeleton variant="heading" width="58%" />
+                    <Skeleton variant="text" width="34%" />
+                    <Skeleton variant="text" width="82%" />
+                  </div>
+                  <div className="history-skeleton-actions">
+                    <Skeleton variant="custom" width="76px" height="40px" />
+                    <Skeleton variant="custom" width="76px" height="40px" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {pageIsError && (
+          <div className="history-state history-error-state">
+            <EmptyState
+              icon="alert-triangle"
+              heading="Couldn't load history"
+              body="Something went wrong fetching your resume history. Please try again."
+              action={{
+                label: 'Retry',
+                onClick: () => {
+                  refetch()
+                },
+              }}
+            />
+          </div>
+        )}
+
+        {!pageIsLoading && !pageIsError && count === 0 && (
+          <div className="history-state history-empty-state">
+            <EmptyState
+              icon="clock"
+              heading="No resumes yet"
+              body="Generated resumes will be automatically saved here. Head to the Generator to create your first tailored resume."
+              action={{
+                label: 'Go to Generator →',
+                onClick: () => navigate(`/generator${reviewSuffix}`),
+              }}
+            />
+          </div>
+        )}
+
+        {!pageIsLoading && !pageIsError && count > 0 && (
+          <div className="history-records">
+            <div className="history-list-header" aria-hidden="true">
+              <span>Resume</span>
+              <span>Actions</span>
+            </div>
+            <div className="history-list" role="list" aria-label="Generated resumes">
+              {visibleResumes.map((resume, index) => (
+                <HistoryCard
+                  key={resume.id}
+                  resume={resume}
+                  index={index}
+                  isDeleting={
+                    deleteMutation.isPending && deleteMutation.variables?.id === resume.id
+                  }
+                  onView={() => setViewingResume(resume)}
+                  onDelete={() => handleDelete(resume)}
+                />
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* ── Loading skeletons ─────────────────────────────────── */}
-      {isLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-4)',
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-divider)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                animation: `cardIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both`,
-                animationDelay: `${i * 80}ms`,
-              }}
-            >
-              <Skeleton variant="avatar" width="36px" height="36px" />
-              <div style={{ flex: 1 }}>
-                <Skeleton variant="heading" width="60%" />
-                <div style={{ height: '6px' }} />
-                <Skeleton variant="text" width="40%" />
-              </div>
-              <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                <Skeleton variant="custom" width="36px" height="36px" />
-                <Skeleton variant="custom" width="36px" height="36px" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────── */}
-      {isError && (
-        <EmptyState
-          icon="alert-triangle"
-          heading="Couldn't load history"
-          body="Something went wrong fetching your resume history. Please try again."
-          action={{
-            label: 'Retry',
-            onClick: () => {
-              refetch()
-            },
-          }}
-        />
-      )}
-
-      {/* ── Empty state ───────────────────────────────────────── */}
-      {!isLoading && !isError && count === 0 && (
-        <EmptyState
-          icon="clock"
-          heading="No resumes yet"
-          body="Generated resumes will be automatically saved here. Head to the Generator to create your first tailored resume."
-          action={{
-            label: 'Go to Generator →',
-            onClick: () => navigate('/generator'),
-          }}
-        />
-      )}
-
-      {/* ── Resume list ───────────────────────────────────────── */}
-      {!isLoading && !isError && resumes && resumes.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {resumes.map((resume, idx) => (
-            <HistoryCard
-              key={resume.id}
-              resume={resume}
-              index={idx}
-              isDeleting={
-                deleteMutation.isPending &&
-                deleteMutation.variables?.id === resume.id
-              }
-              onView={() => setViewingResume(resume)}
-              onDelete={() => handleDelete(resume)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ── View Resume Modal ─────────────────────────────────── */}
       <Modal
         open={!!viewingResume}
         onClose={() => setViewingResume(null)}
@@ -170,104 +168,49 @@ export function HistoryPage() {
             : 'Resume'
         }
       >
-        {viewingResume && (
-          viewingResume.resume_html ? (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Download bar - only when a PDF is available */}
+        {viewingResume &&
+          (viewingResume.resume_html ? (
+            <div className="history-preview-shell">
               {viewingResume.resume_pdfs?.[0] && (
-                <div
-                  style={{
-                    padding: 'var(--space-2) var(--space-4)',
-                    borderBottom: '1px solid var(--color-divider)',
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                  }}
-                >
+                <div className="history-preview-toolbar">
                   <a
                     href={viewingResume.resume_pdfs[0].public_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 500,
-                      color: 'var(--color-primary)',
-                      textDecoration: 'none',
-                      padding: 'var(--space-1) var(--space-3)',
-                      borderRadius: 'var(--radius-full)',
-                      border: '1px solid var(--color-primary)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      transition: 'background 0.2s',
-                    }}
+                    className="history-preview-download"
                   >
-                    <Download size={12} />
+                    <Download size={15} aria-hidden="true" />
                     Download PDF
                   </a>
                 </div>
               )}
 
-              {/* Resume HTML preview */}
-              <iframe
-                srcDoc={DOMPurify.sanitize(viewingResume.resume_html, { WHOLE_DOCUMENT: true })}
+              <ResumeDocument
+                html={viewingResume.resume_html}
                 title="Resume preview"
-                sandbox=""
-                style={{
-                  flex: 1,
-                  width: '100%',
-                  border: 'none',
-                  background: '#fff',
-                }}
               />
             </div>
           ) : (
-            /* ── No HTML available (PDF-only edge case) ─────── */
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                padding: 'var(--space-8)',
-                textAlign: 'center' as const,
-                gap: 'var(--space-4)',
-              }}
-            >
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                HTML preview is unavailable for this resume.
-              </p>
+            <div className="history-preview-unavailable">
+              <p>HTML preview is unavailable for this resume.</p>
               {viewingResume.resume_pdfs?.[0] ? (
                 <a
                   href={viewingResume.resume_pdfs[0].public_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    fontSize: 'var(--text-sm)',
-                    fontWeight: 500,
-                    color: '#fff',
-                    background: 'var(--color-primary)',
-                    textDecoration: 'none',
-                    padding: 'var(--space-2) var(--space-5)',
-                    borderRadius: 'var(--radius-full)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'opacity 0.2s',
-                  }}
+                  className="history-preview-primary-action"
                 >
-                  <Download size={14} />
+                  <Download size={16} aria-hidden="true" />
                   Download PDF Instead
                 </a>
               ) : (
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>
+                <p className="history-preview-no-file">
                   No downloadable file available for this resume.
                 </p>
               )}
             </div>
-          )
-        )}
+          ))}
       </Modal>
-    </div>
+    </section>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isReviewMode } from '@/lib/reviewMode'
 
 /**
  * Global keyboard shortcuts for navigation.
@@ -19,17 +20,19 @@ export function useKeyboardShortcuts() {
       }
 
       if (!mod) return
+      if (document.querySelector('dialog[open]')) return
 
       const key = e.key.toLowerCase()
+      const suffix = import.meta.env.DEV && isReviewMode() ? '?review=1' : ''
       if (key === 'g') {
         e.preventDefault()
-        navigate('/generator')
+        navigate('/generator' + suffix)
       } else if (key === 'p') {
         e.preventDefault()
-        navigate('/profile')
+        navigate('/profile' + suffix)
       } else if (key === 'h') {
         e.preventDefault()
-        navigate('/history')
+        navigate('/history' + suffix)
       }
     }
 

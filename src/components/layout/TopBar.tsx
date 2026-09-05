@@ -1,100 +1,54 @@
+import { NavLink, useLocation } from 'react-router-dom'
 import { Sun, Moon } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { ShortcutsPopover } from '@/components/features/ShortcutsPopover'
+import { APP_NAV_ITEMS } from '@/components/layout/navigation'
+import { isReviewMode } from '@/lib/reviewMode'
 
 export function TopBar() {
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const location = useLocation()
+  const reviewSuffix = import.meta.env.DEV && new URLSearchParams(location.search).get('review') === '1'
+    ? '?review=1'
+    : ''
 
   return (
-    <header
-      role="banner"
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        height: 'var(--topbar-height)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 var(--space-6)',
-        background: 'var(--nav-scrolled-bg)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--color-divider)',
-        flexShrink: 0,
-      }}
-    >
-      {/* Logo - Portfolio's nav-logo pattern: bordered box with initials */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '40px',
-            height: '40px',
-            border: '2px solid var(--color-primary)',
-            borderRadius: 'var(--radius-sm)',
-            fontFamily: 'var(--font-heading)',
-            fontSize: '1.1rem',
-            fontWeight: 500,
-            color: 'var(--color-primary)',
-            letterSpacing: '0.5px', wordSpacing: '0.1em',
-          }}
-        >
-          RM
-        </span>
-        <span
-          style={{
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 500,
-            fontSize: '1.5rem',
-            color: 'var(--color-primary)',
-            letterSpacing: '0.5px', wordSpacing: '0.1em',
-            lineHeight: 1,
-          }}
-        >
-          Resumatch
-        </span>
-      </div>
+    <header role="banner" className="app-topbar">
+      <div className="app-topbar-inner">
+        <NavLink to={`/generator${reviewSuffix}`} className="app-brand" aria-label="Resumatch generator">
+          <span className="app-brand-mark" aria-hidden="true">RM</span>
+          <span className="app-brand-name">Resumatch</span>
+        </NavLink>
 
-      {/* Right actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <ShortcutsPopover />
+        <nav className="app-primary-nav" aria-label="Main navigation">
+          {APP_NAV_ITEMS.map(({ path, label, Icon }) => (
+            <NavLink
+              key={path}
+              to={`${path}${reviewSuffix}`}
+              className={({ isActive }) => `app-primary-nav-item${isActive ? ' is-active' : ''}`}
+              aria-current={location.pathname === path ? 'page' : undefined}
+            >
+              <Icon size={17} aria-hidden="true" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
-        {/* Theme toggle - Portfolio circular button */}
+        <div className="app-topbar-actions">
+          {import.meta.env.DEV && isReviewMode() && (
+            <span className="local-review-badge" title="Local preview with sample data. Changes stay in this browser session.">Local review</span>
+          )}
+          <div className="app-shortcuts-control"><ShortcutsPopover /></div>
+
         <button
           onClick={toggleTheme}
-          aria-label="Toggle light/dark mode"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'var(--color-primary-highlight)',
-            border: '1px solid var(--color-divider)',
-            color: 'var(--color-primary)',
-            transition: 'all 0.3s ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--color-primary)'
-            e.currentTarget.style.color = 'var(--color-bg)'
-            e.currentTarget.style.borderColor = 'var(--color-primary)'
-            e.currentTarget.style.transform = 'rotate(30deg)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--color-primary-highlight)'
-            e.currentTarget.style.color = 'var(--color-primary)'
-            e.currentTarget.style.borderColor = 'var(--color-divider)'
-            e.currentTarget.style.transform = 'rotate(0deg)'
-          }}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          className="app-icon-button app-theme-toggle"
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
         </button>
+        </div>
       </div>
     </header>
   )

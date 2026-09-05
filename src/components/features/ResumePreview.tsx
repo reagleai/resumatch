@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Download, Printer, RotateCcw, FileText, CheckCircle } from 'lucide-react'
+import { CheckCircle, Download, ExternalLink, FileText, Printer, RotateCcw } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import type { GeneratorResult, GeneratorStatus } from '@/types'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingView } from '@/components/features/LoadingView'
+import { ResumeDocument } from '@/components/features/ResumeDocument'
 import { downloadHtml, formatTimestamp } from '@/lib/utils'
 import { useToast } from '@/hooks/useToast'
 
@@ -26,7 +27,7 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
 
   if (status === 'error') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="resume-preview-state">
         <EmptyState
           icon="alert-triangle"
           heading="Generation failed"
@@ -77,166 +78,75 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        {/* ── Toolbar ─────────────────────────────────────── */}
+      <div className="resume-preview-result">
         <div className="preview-toolbar">
-          {/* Left - context label */}
-          <span style={{
-            fontSize: 'var(--text-sm)',
-            fontWeight: 500,
-            color: 'var(--color-text)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            flexWrap: 'wrap',
-          }}>
-            {isPdf && <FileText size={14} style={{ color: 'var(--color-primary)' }} />}
-            Tailored for {result.roletitle} at {result.companyname}
+          <div className="preview-context">
+            <FileText size={16} aria-hidden="true" />
+            <span>
+              <small>Tailored for</small>
+              <strong>{result.roletitle} · {result.companyname}</strong>
+            </span>
             {isPdf && (
-              <span style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-muted)',
-                background: 'var(--color-primary-highlight)',
-                padding: '1px 8px',
-                borderRadius: 'var(--radius-full)',
-                fontWeight: 500,
-              }}>
-                PDF
-              </span>
+              <span className="preview-format-badge">PDF</span>
             )}
-          </span>
-
-          {/* Right - action buttons */}
-          <div className="preview-toolbar-actions">
-            {/* Primary download button */}
-            <button
-              onClick={handleDownload}
-              className="preview-download-btn"
-              style={downloadSuccess ? {
-                background: 'var(--color-success)',
-                borderColor: 'var(--color-success)',
-                color: '#fff',
-              } : undefined}
-            >
-              {downloadSuccess
-                ? <><CheckCircle size={15} /> Downloaded ✓</>
-                : <><Download size={15} /> Download {isPdf ? 'PDF' : 'HTML'}</>
-              }
-            </button>
-
-            {/* Secondary actions */}
-            <button onClick={handlePrint} className="preview-action-btn">
-              <Printer size={14} /> {isPdf ? 'Open in Tab' : 'Print PDF'}
-            </button>
-            <button onClick={onClear} className="preview-action-btn">
-              <RotateCcw size={14} /> Clear
-            </button>
           </div>
+
+          {!isPdf && (
+            <div className="preview-toolbar-actions">
+              <button onClick={handleDownload} className="preview-download-btn">
+                {downloadSuccess
+                  ? <><CheckCircle size={15} aria-hidden="true" /> Downloaded</>
+                  : <><Download size={15} aria-hidden="true" /> Download HTML</>
+                }
+              </button>
+              <button onClick={handlePrint} className="preview-action-btn">
+                <Printer size={14} aria-hidden="true" /> Print PDF
+              </button>
+              <button onClick={onClear} className="preview-action-btn">
+                <RotateCcw size={14} aria-hidden="true" /> Clear
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* ── Preview area ────────────────────────────────── */}
         {isPdf && result.pdfBlobUrl ? (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 'calc(100vh - 220px)',
-            background: 'var(--color-surface)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-divider)',
-            boxShadow: 'var(--shadow-md)',
-          }}>
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 'var(--space-5)',
-              padding: 'var(--space-10)',
-              textAlign: 'center' as const,
-              maxWidth: '400px',
-              width: '100%',
-            }}>
-              {/* PDF icon */}
-              <div style={{
-                width: '72px', height: '72px',
-                borderRadius: 'var(--radius-xl)',
-                background: 'var(--color-primary-highlight)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <FileText size={36} style={{ color: 'var(--color-primary)' }} />
-              </div>
+          <div className="resume-ready-state">
+            <div className="resume-ready-icon"><FileText size={30} aria-hidden="true" /></div>
+            <div className="resume-ready-copy">
+              <span className="resume-ready-kicker"><CheckCircle size={14} aria-hidden="true" /> Generation complete</span>
+              <h3>Your tailored resume is ready</h3>
+              <p>{result.filename}</p>
+            </div>
 
-              <div>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 500, marginBottom: 'var(--space-1)' }}>
-                  Your resume is ready
-                </div>
-                <div style={{
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--color-text-muted)',
-                  wordBreak: 'break-all',
-                }}>
-                  {result.filename}
-                </div>
-              </div>
-
-              {/* Primary download button - large, full-width on mobile */}
+            <div className="resume-ready-actions">
               <button
                 onClick={handleDownload}
                 className="preview-download-btn-hero"
-                style={downloadSuccess ? {
-                  background: 'var(--color-success)',
-                  borderColor: 'var(--color-success)',
-                } : undefined}
+                data-success={downloadSuccess}
               >
                 {downloadSuccess
-                  ? <><CheckCircle size={18} /> Downloaded ✓</>
-                  : <><Download size={18} /> Download PDF</>
+                  ? <><CheckCircle size={18} aria-hidden="true" /> Downloaded</>
+                  : <><Download size={18} aria-hidden="true" /> Download PDF</>
                 }
               </button>
-
-              {/* Secondary: open in tab */}
-              <a
-                href={result.pdfBlobUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--color-text-muted)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '3px',
-                }}
-              >
-                Open in browser tab
-              </a>
+              <div className="resume-ready-secondary-actions">
+                <button type="button" onClick={handlePrint} className="preview-action-btn">
+                  <ExternalLink size={14} aria-hidden="true" /> Open in tab
+                </button>
+                <button type="button" onClick={onClear} className="preview-action-btn">
+                  <RotateCcw size={14} aria-hidden="true" /> Start another
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <iframe
-            id="preview-iframe"
-            srcDoc={DOMPurify.sanitize(result.html, { WHOLE_DOCUMENT: true })}
+          <ResumeDocument
+            html={result.html}
             title="Tailored Resume Preview"
-            sandbox=""
-            style={{
-              flex: 1,
-              width: '100%',
-              minHeight: 'calc(100vh - 220px)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              background: '#fff',
-              boxShadow: 'var(--shadow-md)',
-            }}
           />
         )}
 
-        {/* ── Footer metadata ─────────────────────────────── */}
-        <div style={{
-          fontSize: 'var(--text-xs)',
-          color: 'var(--color-text-faint)',
-          marginTop: 'var(--space-4)',
-          textAlign: 'center' as const,
-          padding: '0 var(--space-4)',
-        }}>
+        <div className="preview-metadata">
           Generated {formatTimestamp(result.timestamp)} · {result.companyname} · {result.roletitle}
         </div>
       </div>
@@ -245,12 +155,11 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
 
   // Idle
   return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="resume-preview-state is-idle">
       <EmptyState
         icon="file-text"
         heading="Your tailored resume will appear here"
-        body="Fill in the job description and click Generate to begin."
-        bordered
+        body="Add a job description, then generate to see and download the result."
       />
     </div>
   )

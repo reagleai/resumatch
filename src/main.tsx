@@ -2,6 +2,7 @@ import React, { useState, lazy, Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LandingPage } from '@/components/landing/LandingPage'
+import { isReviewMode } from '@/lib/reviewMode'
 import './styles/globals.css'
 
 // Lazy-load App so the Supabase client and all tool-gated modules
@@ -21,7 +22,7 @@ const queryClient = new QueryClient({
 
 function AppEntry() {
   const [isUnlocked, setIsUnlocked] = useState(
-    () => sessionStorage.getItem(SESSION_KEY) === 'true'
+    () => (import.meta.env.DEV && isReviewMode()) || sessionStorage.getItem(SESSION_KEY) === 'true'
   )
 
   if (isUnlocked) {

@@ -1,4 +1,5 @@
 import { LOADING_STEPS } from '@/lib/constants'
+import { Check, Loader2 } from 'lucide-react'
 
 interface LoadingViewProps {
   currentStep: number
@@ -6,70 +7,47 @@ interface LoadingViewProps {
 
 export function LoadingView({ currentStep }: LoadingViewProps) {
   const step = LOADING_STEPS[currentStep] || LOADING_STEPS[0]
+  const progress = Math.max(8, ((currentStep + 1) / LOADING_STEPS.length) * 100)
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 'var(--space-6)',
-        textAlign: 'center' as const,
-      }}
-    >
-      {/* Pulsing dots */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: 'var(--radius-full)',
-              background: 'var(--color-primary)',
-              animation: `pulse-dot 1.4s ease-in-out infinite`,
-              animationDelay: `${i * 0.2}s`,
-            }}
-          />
+    <div className="generation-loading" role="status" aria-live="polite">
+      <div className="generation-loading-head">
+        <div>
+          <span>Building your tailored resume</span>
+          <strong>{step.label}</strong>
+        </div>
+        <span className="generation-step-count">{currentStep + 1} / {LOADING_STEPS.length}</span>
+      </div>
+
+      <div className="generation-progress" aria-hidden="true">
+        <span style={{ width: `${progress}%` }} />
+      </div>
+
+      <ol className="generation-steps" aria-label="Generation progress">
+        {LOADING_STEPS.map((loadingStep, index) => {
+          const state = index < currentStep ? 'complete' : index === currentStep ? 'current' : 'upcoming'
+          return (
+            <li key={loadingStep.label} className={`is-${state}`}>
+              <span className="generation-step-icon" aria-hidden="true">
+                {state === 'complete' ? <Check size={13} /> : state === 'current' ? <Loader2 size={13} /> : index + 1}
+              </span>
+              <span>{loadingStep.label.replace(/\.\.\.$/, '')}</span>
+            </li>
+          )
+        })}
+      </ol>
+
+      <div className="generation-document-skeleton" aria-hidden="true">
+        <div className="skeleton generation-skeleton-title" />
+        <div className="skeleton generation-skeleton-contact" />
+        <div className="generation-skeleton-rule" />
+        {[0, 1, 2].map((group) => (
+          <div className="generation-skeleton-group" key={group}>
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
+          </div>
         ))}
-      </div>
-
-      {/* Step label */}
-      <div style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 500 }}>
-        {step.label}
-      </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>
-        Step {currentStep + 1} of {LOADING_STEPS.length}
-      </div>
-
-      {/* Skeleton resume */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          padding: 'var(--space-6)',
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <div className="skeleton" style={{ height: '18px', width: '55%', marginBottom: 'var(--space-3)' }} />
-        <div className="skeleton" style={{ height: '10px', width: '45%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '10px', width: '55%', marginBottom: 'var(--space-2)' }} />
-        <div style={{ height: '1px', background: 'var(--color-divider)', margin: 'var(--space-3) 0' }} />
-        <div className="skeleton" style={{ height: '14px', width: '30%', margin: 'var(--space-4) 0 var(--space-3)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '95%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '80%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '88%', marginBottom: 'var(--space-2)' }} />
-        <div style={{ height: '1px', background: 'var(--color-divider)', margin: 'var(--space-3) 0' }} />
-        <div className="skeleton" style={{ height: '14px', width: '30%', margin: 'var(--space-4) 0 var(--space-3)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '90%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '70%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '85%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '60%', marginBottom: 'var(--space-2)' }} />
-        <div className="skeleton" style={{ height: '12px', width: '75%', marginBottom: 'var(--space-2)' }} />
       </div>
     </div>
   )

@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import {
+  deleteReviewHistoryFixture,
+  getReviewHistoryFixture,
+  isReviewMode,
+} from '@/lib/reviewMode'
 import type { SavedResumeWithPdf } from '@/types'
 
 // ── Query Keys ───────────────────────────────────────────────────
@@ -10,6 +14,9 @@ export const HISTORY_QUERY_KEY = ['resume-history'] as const
 // `resume_pdfs` so consumers keep reading the same field name.
 
 async function fetchResumeHistory(): Promise<SavedResumeWithPdf[]> {
+  if (import.meta.env.DEV && isReviewMode()) return getReviewHistoryFixture()
+
+  const { supabase } = await import('@/lib/supabase')
   const { data, error } = await supabase
     .from('resumatch_resume_history')
     .select(
@@ -59,6 +66,12 @@ interface DeletePayload {
 }
 
 async function deleteResume(payload: DeletePayload): Promise<void> {
+  if (import.meta.env.DEV && isReviewMode()) {
+    await deleteReviewHistoryFixture(payload.id)
+    return
+  }
+
+  const { supabase } = await import('@/lib/supabase')
   // Step 1: If a PDF file exists, delete from Storage FIRST
   if (payload.pdfFilePath) {
     const { error: storageError } = await supabase.storage
