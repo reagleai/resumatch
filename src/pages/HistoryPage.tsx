@@ -46,10 +46,10 @@ export function HistoryPage() {
       { id: resume.id, pdfFilePath: pdf?.file_path },
       {
         onSuccess: () => {
-          toast('Resume deleted.', 'info')
+          toast('Deleted', 'info')
         },
         onError: (err) => {
-          toast(err instanceof Error ? err.message : 'Failed to delete resume.', 'error')
+          toast(err instanceof Error ? err.message : 'Delete failed. Try again.', 'error')
         },
       }
     )
@@ -64,11 +64,8 @@ export function HistoryPage() {
       <header className="app-page-header page-header history-page-header">
         <div className="page-header-copy">
           <h1 id="history-page-title" className="page-title">
-            Resume History
+            History
           </h1>
-          <p className="page-description">
-            Previously generated resumes, persisted across sessions.
-          </p>
         </div>
 
         {!pageIsLoading && !pageIsError && count > 0 && (
@@ -85,7 +82,7 @@ export function HistoryPage() {
       <div className="history-page-content">
         {pageIsLoading && (
           <div className="history-list history-loading-list" role="status">
-            <span className="sr-only">Loading resume history…</span>
+            <span className="sr-only">Loading history…</span>
             {[0, 1, 2].map((item) => (
               <div key={item} className="history-card history-card-skeleton" aria-hidden="true">
                 <div className="history-card-main">
@@ -109,10 +106,11 @@ export function HistoryPage() {
           <div className="history-state history-error-state">
             <EmptyState
               icon="alert-triangle"
+              tone="error"
               heading="Couldn't load history"
-              body="Something went wrong fetching your resume history. Please try again."
+              body="Check your connection, then retry."
               action={{
-                label: 'Retry',
+                label: 'Try again',
                 onClick: () => {
                   refetch()
                 },
@@ -126,9 +124,9 @@ export function HistoryPage() {
             <EmptyState
               icon="clock"
               heading="No resumes yet"
-              body="Generated resumes will be automatically saved here. Head to the Generator to create your first tailored resume."
+              body="Every resume you generate is saved here."
               action={{
-                label: 'Go to Generator →',
+                label: 'Generate one',
                 onClick: () => navigate(`/generator${reviewSuffix}`),
               }}
             />
@@ -137,10 +135,6 @@ export function HistoryPage() {
 
         {!pageIsLoading && !pageIsError && count > 0 && (
           <div className="history-records">
-            <div className="history-list-header" aria-hidden="true">
-              <span>Resume</span>
-              <span>Actions</span>
-            </div>
             <div className="history-list" role="list" aria-label="Generated resumes">
               {visibleResumes.map((resume, index) => (
                 <HistoryCard
@@ -180,7 +174,7 @@ export function HistoryPage() {
                     className="history-preview-download"
                   >
                     <Download size={15} aria-hidden="true" />
-                    Download PDF
+                    Open PDF
                   </a>
                 </div>
               )}
@@ -192,21 +186,21 @@ export function HistoryPage() {
             </div>
           ) : (
             <div className="history-preview-unavailable">
-              <p>HTML preview is unavailable for this resume.</p>
               {viewingResume.resume_pdfs?.[0] ? (
-                <a
-                  href={viewingResume.resume_pdfs[0].public_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="history-preview-primary-action"
-                >
-                  <Download size={16} aria-hidden="true" />
-                  Download PDF Instead
-                </a>
+                <>
+                  <p>No preview available.</p>
+                  <a
+                    href={viewingResume.resume_pdfs[0].public_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="history-preview-primary-action"
+                  >
+                    <Download size={16} aria-hidden="true" />
+                    Open PDF
+                  </a>
+                </>
               ) : (
-                <p className="history-preview-no-file">
-                  No downloadable file available for this resume.
-                </p>
+                <p>Nothing was saved for this resume.</p>
               )}
             </div>
           ))}

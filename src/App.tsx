@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { GeneratorPage } from '@/pages/GeneratorPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -8,6 +8,30 @@ import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useProfileQuery } from '@/hooks/useProfile'
 import { useAppStore } from '@/store/appStore'
+import { APP_NAV_ITEMS } from '@/components/layout/navigation'
+
+function RouteEffects() {
+  const { pathname } = useLocation()
+  const route = APP_NAV_ITEMS.find((item) => item.path === pathname)
+  const pageName = route?.label ?? 'Generator'
+
+  useEffect(() => {
+    document.title = `${pageName} | Resumatch`
+    requestAnimationFrame(() => {
+      if (!document.querySelector('dialog[open]')) {
+        document.querySelector<HTMLElement>('#main-content')?.focus({ preventScroll: true })
+      }
+    })
+  }, [pageName, pathname])
+
+  return <span className="sr-only" aria-live="polite" aria-atomic="true">{pageName} page</span>
+}
+
+function AppRedirect() {
+  const { search } = useLocation()
+  const keepReview = import.meta.env.DEV && new URLSearchParams(search).get('review') === '1'
+  return <Navigate to={`/generator${keepReview ? '?review=1' : ''}`} replace />
+}
 
 function AppContent() {
   useTheme()
@@ -30,12 +54,13 @@ function AppContent() {
 
   return (
     <AppShell>
+      <RouteEffects />
       <Routes>
-        <Route path="/" element={<Navigate to="/generator" replace />} />
+        <Route path="/" element={<AppRedirect />} />
         <Route path="/generator" element={<GeneratorPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="*" element={<Navigate to="/generator" replace />} />
+        <Route path="*" element={<AppRedirect />} />
       </Routes>
     </AppShell>
   )

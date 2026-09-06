@@ -2,9 +2,8 @@ import { useEffect } from 'react'
 import { LandingNav } from './LandingNav'
 import { LandingHero } from './LandingHero'
 import { HowItWorks } from './HowItWorks'
+import { WhatChanges } from './WhatChanges'
 import { BeforeAfter } from './BeforeAfter'
-import { ValueSection } from './ValueSection'
-import { TrustSection } from './TrustSection'
 import { AccessSection } from './AccessSection'
 
 interface LandingPageProps {
@@ -45,12 +44,10 @@ export function LandingPage({ onUnlock }: LandingPageProps) {
       <LandingNav />
       <LandingHero />
       <HowItWorks />
+      <WhatChanges />
       <BeforeAfter />
-      <ValueSection />
-      <TrustSection />
       <AccessSection onUnlock={onUnlock} />
 
-      {/* Footer */}
       <footer
         style={{
           textAlign: 'center',
@@ -58,22 +55,16 @@ export function LandingPage({ onUnlock }: LandingPageProps) {
           borderTop: '1px solid var(--color-divider)',
         }}
       >
-        <p
-          style={{
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-faint)',
-          }}
-        >
-          Resumatch - AI-powered resume tailoring. Built as a product engineering case study.
-        </p>
-        <p
-          style={{
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-faint)',
-            marginTop: 'var(--space-2)',
-          }}
-        >
-          Built by Ajay Sharma · <a href="https://www.linkedin.com/in/workwithajay/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>LinkedIn</a>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>
+          Built by Ajay Sharma ·{' '}
+          <a
+            href="https://www.linkedin.com/in/workwithajay/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'inherit', textDecoration: 'underline' }}
+          >
+            LinkedIn
+          </a>
         </p>
       </footer>
     </div>

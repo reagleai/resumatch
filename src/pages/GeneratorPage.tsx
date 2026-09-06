@@ -19,6 +19,7 @@ export function GeneratorPage() {
   const previewHtml = useAppStore((s) => s.previewHtml)
   const setPreviewHtml = useAppStore((s) => s.setPreviewHtml)
   const reviewStateSeeded = useRef(false)
+  const previewTabRef = useRef<HTMLButtonElement>(null)
   const [mobilePane, setMobilePane] = useState<'details' | 'preview'>(
     generator.status === 'idle' ? 'details' : 'preview'
   )
@@ -68,7 +69,7 @@ export function GeneratorPage() {
     }
 
     if (reviewState === 'error') {
-      store.setGeneratorError('The resume could not be generated. Your job details are still here, so you can try again.')
+      store.setGeneratorError('The rewrite step timed out before the PDF was built.')
       return
     }
 
@@ -89,6 +90,9 @@ export function GeneratorPage() {
   const handleGenerate = useCallback(async () => {
     setPreviewHtml(null)
     setMobilePane('preview')
+    if (window.matchMedia('(max-width: 959px)').matches) {
+      requestAnimationFrame(() => previewTabRef.current?.focus({ preventScroll: true }))
+    }
     await generate()
   }, [generate, setPreviewHtml])
 
@@ -103,8 +107,8 @@ export function GeneratorPage() {
     : effectiveStatus === 'success'
       ? 'Ready'
       : effectiveStatus === 'error'
-        ? 'Needs attention'
-        : 'Waiting for job details'
+        ? 'Failed'
+        : 'Not started'
 
   // Keyboard shortcut: Cmd/Ctrl + Enter
   useEffect(() => {
@@ -146,6 +150,7 @@ export function GeneratorPage() {
           Job details
         </button>
         <button
+          ref={previewTabRef}
           id="generator-preview-tab"
           type="button"
           role="tab"
@@ -163,15 +168,13 @@ export function GeneratorPage() {
 
       <section
         id="generator-details-panel"
+        role="tabpanel"
         className="generator-pane gen-left"
         data-mobile-active={mobilePane === 'details'}
-        aria-labelledby="generator-page-title"
+        aria-labelledby="generator-details-tab generator-page-title"
       >
         <header className="generator-heading">
-          <h1 id="generator-page-title" className="page-title">Generate Resume</h1>
-          <p className="page-description">
-            Add the role details, then Resumatch adapts your saved resume for the application.
-          </p>
+          <h1 id="generator-page-title" className="page-title">Generate resume</h1>
         </header>
 
         {!profileLoading && (profileComplete ? <ProfileCard /> : <ProfileGuard />)}
@@ -182,7 +185,7 @@ export function GeneratorPage() {
             label="Job description"
             required
             rows={8}
-            placeholder="Paste the full job description, including the role, responsibilities, qualifications, and tools mentioned."
+            placeholder="Paste the job description"
             value={generator.jd}
             onChange={(e) => setGeneratorField('jd', e.target.value)}
             charCount
@@ -191,12 +194,12 @@ export function GeneratorPage() {
 
           <Textarea
             id="input-keywords"
-            label="Priority keywords (optional)"
+            label="Keywords (optional)"
             rows={2}
-            placeholder="Product analytics, A/B testing, SQL, cross-functional leadership"
+            placeholder="Product analytics, A/B testing, SQL"
             value={generator.keywords}
             onChange={(e) => setGeneratorField('keywords', e.target.value)}
-            helperText="Included only where your saved resume supports them."
+            helperText="Used only where your resume already supports them."
           />
         </div>
 
@@ -210,7 +213,7 @@ export function GeneratorPage() {
             rightIcon={generator.status !== 'loading' ? <ArrowRight size={16} /> : undefined}
             className="generator-submit"
           >
-            {generator.status === 'loading' ? 'Generating…' : 'Generate tailored resume'}
+            {generator.status === 'loading' ? 'Generating…' : 'Generate'}
           </Button>
           <span className="generator-shortcut-hint" aria-hidden="true">⌘ / Ctrl + Enter</span>
         </div>
@@ -220,15 +223,16 @@ export function GeneratorPage() {
 
       <section
         id="generator-preview-panel"
+        role="tabpanel"
         className="generator-pane gen-right"
         data-mobile-active={mobilePane === 'preview'}
-        aria-labelledby="generator-preview-title"
+        aria-labelledby="generator-preview-tab generator-preview-title"
       >
         <header className="generator-preview-header">
           <div>
             <h2 id="generator-preview-title">Resume preview</h2>
           </div>
-          <span className={`generator-status is-${effectiveStatus}`}>
+          <span className={`generator-status is-${effectiveStatus}`} role="status" aria-live="polite">
             <span aria-hidden="true" />
             {statusLabel}
           </span>

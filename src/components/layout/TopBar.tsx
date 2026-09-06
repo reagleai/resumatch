@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Sun, Moon } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { ShortcutsPopover } from '@/components/features/ShortcutsPopover'
@@ -16,10 +16,10 @@ export function TopBar() {
   return (
     <header role="banner" className="app-topbar">
       <div className="app-topbar-inner">
-        <NavLink to={`/generator${reviewSuffix}`} className="app-brand" aria-label="Resumatch generator">
+        <Link to={`/generator${reviewSuffix}`} className="app-brand" aria-label="Resumatch generator">
           <span className="app-brand-mark" aria-hidden="true">RM</span>
           <span className="app-brand-name">Resumatch</span>
-        </NavLink>
+        </Link>
 
         <nav className="app-primary-nav" aria-label="Main navigation">
           {APP_NAV_ITEMS.map(({ path, label, Icon }) => (

@@ -23,7 +23,7 @@ export function ResumeDocument({ html, title }: ResumeDocumentProps) {
   useEffect(() => {
     if (!sanitizedHtml) return
     // Blob URLs are explicitly permitted by the app's existing frame CSP.
-    const url = URL.createObjectURL(new Blob([sanitizedHtml], { type: 'text/html' }))
+    const url = URL.createObjectURL(new Blob([sanitizedHtml], { type: 'text/html;charset=utf-8' }))
     setDocumentUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [sanitizedHtml])
@@ -47,7 +47,7 @@ export function ResumeDocument({ html, title }: ResumeDocumentProps) {
           {actualSize ? 'Fit width' : 'Actual size'}
         </button>
       </div>
-      <div ref={viewportRef} className="document-viewport" tabIndex={0} aria-label={`${title}, scrollable document`}>
+      <div ref={viewportRef} className="document-viewport" role="region" tabIndex={0} aria-label={`${title}, scrollable document`}>
         {documentUrl ? (
           <div className="document-paper" style={{ width: PAPER_WIDTH * scale, height: PAPER_HEIGHT * scale }}>
             <iframe
@@ -58,7 +58,7 @@ export function ResumeDocument({ html, title }: ResumeDocumentProps) {
               style={{ width: PAPER_WIDTH, height: PAPER_HEIGHT, transform: `scale(${scale})` }}
             />
           </div>
-        ) : <div className="document-loading" role="status">Loading resume preview…</div>}
+        ) : <div className="document-loading" role="status">Loading preview…</div>}
       </div>
     </div>
   )

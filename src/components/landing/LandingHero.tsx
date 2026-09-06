@@ -1,24 +1,9 @@
-import { ArrowRight, FileText } from 'lucide-react'
-import { useState, useEffect } from 'react'
-
-const HEADLINES = [
-  { main: "Rewritten by AI.", highlight: "Every claim still yours to defend." },
-  { main: "They hallucinate.", highlight: "We reposition what's already true." },
-  { main: "Resumes you can", highlight: "confidently defend in interviews." }
-]
+import { ArrowRight, FileDown, FileText } from 'lucide-react'
 
 export function LandingHero() {
-  const [headlineIndex, setHeadlineIndex] = useState(0)
-
-  useEffect(() => {
-    setHeadlineIndex(Math.floor(Math.random() * HEADLINES.length))
-  }, [])
-
-  const headline = HEADLINES[headlineIndex]
-
   return (
     <section
-      className="landing-section"
+      className="landing-section landing-hero"
       style={{
         minHeight: '100dvh',
         display: 'flex',
@@ -34,6 +19,7 @@ export function LandingHero() {
     >
       {/* Subtle background glow */}
       <div
+        aria-hidden="true"
         style={{
           position: 'absolute',
           top: '20%',
@@ -47,12 +33,6 @@ export function LandingHero() {
         }}
       />
 
-      {/* Section label */}
-      <span className="section-label" style={{ marginBottom: 'var(--space-6)' }}>
-        AI-Powered Resume Tailoring
-      </span>
-
-      {/* Headline */}
       <h1
         style={{
           fontFamily: 'var(--font-heading)',
@@ -62,196 +42,89 @@ export function LandingHero() {
           letterSpacing: '0px',
           wordSpacing: '0.1em',
           lineHeight: 1.1,
-          maxWidth: '800px',
-          marginBottom: 'var(--space-6)',
+          maxWidth: '820px',
+          marginBottom: 'var(--space-5)',
         }}
       >
-        {headline.main}{' '}
-        <span style={{ color: 'var(--color-primary)' }}>{headline.highlight}</span>
+        One resume, rewritten for{' '}
+        <span style={{ color: 'var(--color-primary)' }}>the job you're applying to.</span>
       </h1>
 
-      {/* Subtext */}
       <p
         style={{
           fontSize: 'clamp(1rem, 2vw, 1.15rem)',
           color: 'var(--color-text-muted)',
-          maxWidth: '580px',
-          lineHeight: 1.7,
-          marginBottom: 'var(--space-10)',
+          maxWidth: '520px',
+          lineHeight: 1.6,
+          marginBottom: 'var(--space-8)',
         }}
       >
-        Paste a job description. Get a role-specific, recruiter-ready resume in under a minute.
-        No templates. No guesswork. Just sharper positioning.
+        Paste a job description. Get a one-page PDF built from your own resume.
       </p>
 
-      {/* CTA */}
-      <a
-        href="#how-it-works"
-        className="btn-base btn-primary-variant btn-size-lg"
-        style={{ textDecoration: 'none', gap: 'var(--space-2)' }}
-      >
-        See How It Works
-        <ArrowRight size={16} />
-      </a>
-
-      {/* Tool preview mock */}
-      <div
-        style={{
-          marginTop: 'var(--space-16)',
-          width: '100%',
-          maxWidth: '900px',
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-divider)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-md)',
-          overflow: 'hidden',
-          animation: 'cardIn 0.6s ease both',
-        }}
-      >
-        {/* Mock top bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            padding: 'var(--space-3) var(--space-4)',
-            borderBottom: '1px solid var(--color-divider)',
-          }}
+      <div className="landing-hero-actions">
+        <a
+          href="#access"
+          className="btn-base btn-primary-variant btn-size-lg"
+          style={{ textDecoration: 'none', gap: 'var(--space-2)' }}
         >
-          <span
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: 'var(--color-error)',
-              opacity: 0.7,
-            }}
-          />
-          <span
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: 'var(--color-warning)',
-              opacity: 0.7,
-            }}
-          />
-          <span
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: 'var(--color-success)',
-              opacity: 0.7,
-            }}
-          />
-          <span
-            style={{
-              marginLeft: 'auto',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-text-faint)',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            resumatch
-          </span>
+          Get early access
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+        <a href="#how-it-works" className="landing-hero-secondary">
+          How it works
+        </a>
+      </div>
+
+      {/* Input to output preview. The panels mirror the real generator layout. */}
+      <div className="landing-hero-preview">
+        <div className="landing-hero-preview-bar">
+          <span className="landing-hero-dot" style={{ background: 'var(--color-error)' }} />
+          <span className="landing-hero-dot" style={{ background: 'var(--color-warning)' }} />
+          <span className="landing-hero-dot" style={{ background: 'var(--color-success)' }} />
+          <span className="landing-hero-preview-name">resumatch</span>
         </div>
 
-        {/* Mock two-panel layout */}
         <div className="landing-hero-panels">
-          {/* Left: Input mock */}
           <div
             className="landing-hero-panel-left"
-            style={{
-              padding: 'var(--space-6)',
-              borderRight: '1px solid var(--color-divider)',
-            }}
+            style={{ padding: 'var(--space-6)', borderRight: '1px solid var(--color-divider)' }}
           >
-            <div
-              style={{
-                fontSize: 'var(--text-sm)',
-                fontWeight: 500,
-                marginBottom: 'var(--space-4)',
-                color: 'var(--color-text)',
-              }}
-            >
-              Job Description
+            <div className="landing-hero-panel-title">
+              <FileText size={14} aria-hidden="true" />
+              Job description
             </div>
-            <div
-              style={{
-                background: 'var(--color-surface-offset)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-4)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-muted)',
-                lineHeight: 1.7,
-                border: '1px solid var(--color-border)',
-                marginBottom: 'var(--space-4)',
-              }}
-            >
+            <div className="landing-hero-jd">
               <span style={{ color: 'var(--color-text)', fontWeight: 500 }}>
                 Associate Product Manager
               </span>
               <br />
-              We're looking for an APM to drive product strategy for our AI-powered platform.
-              You'll work with engineering, design, and data to ship features that solve real user
-              problems…
+              Drive product strategy for our platform. Work with engineering, design and data to ship
+              features that solve real user problems…
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 'var(--space-2)',
-                flexWrap: 'wrap',
-              }}
-            >
-              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
-                Product Analytics
-              </span>
-              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
-                A/B Testing
-              </span>
-              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
-                SQL
-              </span>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>Product Analytics</span>
+              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>A/B Testing</span>
+              <span className="tag-pill" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>SQL</span>
             </div>
           </div>
 
-          {/* Right: Output mock */}
           <div className="landing-hero-panel-right" style={{ padding: 'var(--space-6)' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                fontSize: 'var(--text-sm)',
-                fontWeight: 500,
-                marginBottom: 'var(--space-4)',
-                color: 'var(--color-primary)',
-              }}
-            >
-              <FileText size={14} />
-              Tailored Resume
+            <div className="landing-hero-panel-title" style={{ color: 'var(--color-primary)' }}>
+              <FileDown size={14} aria-hidden="true" />
+              Tailored resume · PDF
             </div>
-            {/* Skeleton lines representing resume output */}
-            <div
-              style={{
-                background: 'var(--color-surface-offset)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-4)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
+            <div className="landing-hero-doc" aria-hidden="true">
               <div className="skeleton" style={{ height: '14px', width: '55%', marginBottom: 'var(--space-2)' }} />
-              <div className="skeleton" style={{ height: '9px', width: '75%', marginBottom: 'var(--space-2)' }} />
-              <div className="skeleton" style={{ height: '9px', width: '65%', marginBottom: 'var(--space-4)' }} />
+              <div className="skeleton" style={{ height: '9px', width: '75%', marginBottom: 'var(--space-4)' }} />
               <div style={{ height: '1px', background: 'var(--color-divider)', marginBottom: 'var(--space-3)' }} />
-              <div className="skeleton" style={{ height: '11px', width: '35%', marginBottom: 'var(--space-2)' }} />
-              <div className="skeleton" style={{ height: '8px', width: '92%', marginBottom: 'var(--space-1)' }} />
-              <div className="skeleton" style={{ height: '8px', width: '80%', marginBottom: 'var(--space-1)' }} />
-              <div className="skeleton" style={{ height: '8px', width: '87%', marginBottom: 'var(--space-3)' }} />
-              <div className="skeleton" style={{ height: '11px', width: '30%', marginBottom: 'var(--space-2)' }} />
-              <div className="skeleton" style={{ height: '8px', width: '88%', marginBottom: 'var(--space-1)' }} />
-              <div className="skeleton" style={{ height: '8px', width: '70%', marginBottom: 'var(--space-1)' }} />
+              {['Summary', 'Experience', 'Projects', 'Skills'].map((section) => (
+                <div className="landing-hero-doc-block" key={section}>
+                  <span className="landing-hero-doc-label">{section}</span>
+                  <div className="skeleton" style={{ height: '8px', width: '92%' }} />
+                  <div className="skeleton" style={{ height: '8px', width: '78%' }} />
+                </div>
+              ))}
             </div>
           </div>
         </div>

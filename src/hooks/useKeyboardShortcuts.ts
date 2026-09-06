@@ -4,7 +4,7 @@ import { isReviewMode } from '@/lib/reviewMode'
 
 /**
  * Global keyboard shortcuts for navigation.
- * Cmd/Ctrl+G → Generator, Cmd/Ctrl+P → Profile, Cmd/Ctrl+H → History
+ * Alt+1 → Generator, Alt+2 → Profile, Alt+3 → History
  * Escape → close any open modal/popover
  */
 export function useKeyboardShortcuts() {
@@ -12,25 +12,25 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey
-
       if (e.key === 'Escape') {
         // Close any confirm dialogs (handled by components individually)
         return
       }
 
-      if (!mod) return
+      const target = e.target as HTMLElement | null
+      if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
       if (document.querySelector('dialog[open]')) return
 
-      const key = e.key.toLowerCase()
+      const key = e.code
       const suffix = import.meta.env.DEV && isReviewMode() ? '?review=1' : ''
-      if (key === 'g') {
+      if (key === 'Digit1') {
         e.preventDefault()
         navigate('/generator' + suffix)
-      } else if (key === 'p') {
+      } else if (key === 'Digit2') {
         e.preventDefault()
         navigate('/profile' + suffix)
-      } else if (key === 'h') {
+      } else if (key === 'Digit3') {
         e.preventDefault()
         navigate('/history' + suffix)
       }

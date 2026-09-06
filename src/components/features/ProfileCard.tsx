@@ -2,9 +2,8 @@ import { CheckCircle } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 /**
- * Compact profile-status banner shown on the Generator page.
- * Communicates that the profile is ready - no metadata details.
- * Profile editing is available via the sidebar/nav Profile page.
+ * Confirms, in one line, which resume the next run will start from.
+ * Editing lives on the Profile page.
  */
 export function ProfileCard() {
   const navigate = useNavigate()
@@ -17,8 +16,7 @@ export function ProfileCard() {
     <div className="profile-status-card" role="status">
       <CheckCircle size={18} aria-hidden="true" />
       <div className="profile-status-copy">
-        <strong>Profile ready</strong>
-        <span>Your saved resume will be used for this run.</span>
+        <strong>Using your saved base resume</strong>
       </div>
       <button type="button" onClick={() => navigate(`/profile${reviewSuffix}`)}>Edit</button>
     </div>

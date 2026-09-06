@@ -11,9 +11,10 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ResumeImportProgress } from '@/components/features/ResumeImportProgress'
 import { ResumeDocument } from '@/components/features/ResumeDocument'
 import { runResumeImport } from '@/lib/resumeImport'
+import { readableError } from '@/lib/utils'
 import type { ProfileState, ResumeImportReport, ResumeImportStageId } from '@/types'
 import { DEFAULT_PROFILE } from '@/lib/constants'
-import { getReviewParam, isReviewMode } from '@/lib/reviewMode'
+import { createReviewImportFixture, getReviewParam, isReviewMode, REVIEW_IMPORT_REPORT } from '@/lib/reviewMode'
 
 const REQUIRED_FIELDS: { key: keyof ProfileState; label: string }[] = [
   { key: 'baseResumeHtml', label: 'Base resume' },
@@ -21,16 +22,6 @@ const REQUIRED_FIELDS: { key: keyof ProfileState; label: string }[] = [
   { key: 'lastName', label: 'Last name' },
 ]
 const MAX_RESUME_BYTES = 4 * 1024 * 1024
-
-const REVIEW_IMPORT_REPORT: ResumeImportReport = {
-  pages: 2,
-  extractedCharacters: 6842,
-  reviewPasses: 2,
-  audits: [
-    { pass: 1, missingFacts: [], unsupportedFacts: [], correctionsMade: ['Restored one project metric from the source PDF.'], confidence: 0.91 },
-    { pass: 2, missingFacts: [], unsupportedFacts: [], correctionsMade: [], confidence: 0.97 },
-  ],
-}
 
 export function ProfilePage() {
   const initialReviewState = import.meta.env.DEV && isReviewMode() ? getReviewParam('state') : null
@@ -42,7 +33,7 @@ export function ProfilePage() {
     initialReviewState === 'importing' ? 'audit-1' : null
   )
   const [importError, setImportError] = useState(
-    initialReviewState === 'import-error' ? 'This PDF could not be read. Choose a text-based PDF and try again.' : ''
+    initialReviewState === 'import-error' ? 'No readable text found. Upload a text-based PDF, not a scan.' : ''
   )
   const [importReport, setImportReport] = useState<ResumeImportReport | null>(
     initialReviewState === 'import-complete' ? REVIEW_IMPORT_REPORT : null
@@ -81,6 +72,7 @@ export function ProfilePage() {
     formState: { errors },
   } = useForm<ProfileState>({
     defaultValues: initialValues,
+    shouldFocusError: false,
   })
 
   // When remote data arrives, reset the form with fetched values
@@ -128,13 +120,13 @@ export function ProfilePage() {
     // Save to Supabase via React Query mutation
     profileMutation.mutate(normalized, {
       onSuccess: () => {
-        toast('Profile saved! Ready to generate resumes.', 'success')
+        toast('Profile saved', 'success')
         setSaved(true)
         setTimeout(() => setSaved(false), 1500)
       },
       onError: (err) => {
         if (import.meta.env.DEV) console.error('[ProfilePage] Save error:', err)
-        toast('Save failed. Please check your connection and try again.', 'error')
+        toast('Save failed. Check your connection.', 'error')
       },
     })
   }
@@ -149,11 +141,11 @@ export function ProfilePage() {
     if (!file) return
 
     if (file.type && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setImportError('Please choose a PDF resume.')
+      setImportError('Choose a PDF file.')
       return
     }
     if (file.size > MAX_RESUME_BYTES) {
-      setImportError('Resume PDF is too large. Maximum size is 4 MB.')
+      setImportError('That PDF is over 4 MB. Choose a smaller file.')
       return
     }
 
@@ -161,9 +153,11 @@ export function ProfilePage() {
     setImportReport(null)
     setImportStage('reading')
     try {
-      // Browser extracts the text, then the server streams each stage back
-      // (extract → audit 1 → audit 2 → render); setImportStage drives the UI.
-      const result = await runResumeImport(file, setImportStage)
+      // Local review mode mirrors each real stage without uploading the
+      // reviewer-selected file or contacting a production service.
+      const result = import.meta.env.DEV && isReviewMode()
+        ? await createReviewImportFixture(setImportStage)
+        : await runResumeImport(file, setImportStage)
 
       setValue('firstName', result.firstName || '', { shouldDirty: true, shouldValidate: true })
       setValue('lastName', result.lastName || '', { shouldDirty: true, shouldValidate: true })
@@ -173,11 +167,13 @@ export function ProfilePage() {
       // Keep the exact uploaded PDF for the eye-icon preview (old URL is
       // revoked by the cleanup effect when this value changes).
       setPdfPreviewUrl(URL.createObjectURL(file))
-      toast('Resume imported and verified twice. Save your profile to continue.', 'success')
+      toast('Resume imported. Save to finish.', 'success')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Resume import failed.'
+      const message = readableError(
+        error instanceof Error ? error.message : 'Import failed. Try again.'
+      )
       setImportError(message)
-      toast(`Resume import failed: ${message.substring(0, 90)}`, 'error')
+      toast(`Import failed: ${message.substring(0, 90)}`, 'error')
     } finally {
       setImportStage(null)
     }
@@ -191,7 +187,7 @@ export function ProfilePage() {
         aria-labelledby="profile-loading-title"
         aria-busy="true"
       >
-        <h1 id="profile-loading-title" className="sr-only">Your Profile</h1>
+        <h1 id="profile-loading-title" className="sr-only">Profile</h1>
         <span className="sr-only" role="status">Loading profile…</span>
 
         <header className="app-page-header page-header profile-page-header" aria-hidden="true">
@@ -234,16 +230,16 @@ export function ProfilePage() {
   // Register the name fields first so validation still focuses the first
   // visible identity field when several required values are missing.
   const firstNameField = register('firstName', {
-    required: 'This field is required',
+    required: 'Enter your first name',
     maxLength: { value: 100, message: 'Max 100 characters' },
   })
   const lastNameField = register('lastName', {
-    required: 'This field is required',
+    required: 'Enter your last name',
     maxLength: { value: 100, message: 'Max 100 characters' },
   })
   const baseResumeField = register('baseResumeHtml', {
-    required: 'Upload your current resume PDF',
-    maxLength: { value: 500_000, message: 'Resume HTML is too large (max 500KB)' },
+    required: 'Upload your resume PDF',
+    maxLength: { value: 500_000, message: 'Resume is too large (max 500 KB)' },
   })
   const maxGrowthField = register('maxgrowthpct', {
     min: { value: 1, message: 'Minimum is 1%' },
@@ -260,26 +256,48 @@ export function ProfilePage() {
     <section className="app-page profile-page" aria-labelledby="profile-page-title">
       <header className="app-page-header page-header profile-page-header">
         <div className="page-header-copy">
-          <h1 id="profile-page-title" className="page-title">Your Profile</h1>
-          <p className="page-description">Set once. Used on every resume generation run.</p>
+          <h1 id="profile-page-title" className="page-title">Profile</h1>
+          {!hasResume && (
+            <p className="page-description">Set up once. Every run starts from this.</p>
+          )}
         </div>
       </header>
 
       {pageIsFetchError && (
         <div className="profile-alert profile-fetch-error" role="alert">
-          Could not load your saved profile. You can still edit below; saving requires a working connection.
+          Couldn't load your saved profile. You can still edit below, but saving needs a connection.
         </div>
       )}
 
       <form
         className="profile-form"
         onSubmit={handleSubmit(onSubmit, (validationErrors) => {
+          if (validationErrors.baseResumeHtml) {
+            document.querySelector<HTMLButtonElement>('.profile-upload-target')?.focus()
+            document.querySelector('.profile-resume-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            return
+          }
+          if (validationErrors.firstName) {
+            document.querySelector<HTMLInputElement>('#input-firstName')?.focus()
+            return
+          }
+          if (validationErrors.lastName) {
+            document.querySelector<HTMLInputElement>('#input-lastName')?.focus()
+            return
+          }
           if (validationErrors.maxgrowthpct || validationErrors.companynamefallback || validationErrors.roletitlefallback) {
             setAdvancedOpen(true)
+            requestAnimationFrame(() => {
+              const id = validationErrors.maxgrowthpct
+                ? '#input-maxgrowthpct'
+                : validationErrors.companynamefallback
+                  ? '#input-companynamefallback'
+                  : '#input-roletitlefallback'
+              document.querySelector<HTMLInputElement>(id)?.focus()
+            })
           }
         })}
         noValidate
-        autoComplete="off"
       >
         <div className="profile-layout">
           <div className="profile-main">
@@ -288,7 +306,7 @@ export function ProfilePage() {
               aria-labelledby="profile-resume-title"
             >
               <header className="profile-section-header">
-                <h2 id="profile-resume-title" className="profile-section-title">Base Resume</h2>
+                <h2 id="profile-resume-title" className="profile-section-title">Base resume</h2>
               </header>
 
               <input type="hidden" {...baseResumeField} />
@@ -299,7 +317,7 @@ export function ProfilePage() {
                 accept="application/pdf,.pdf"
                 onChange={importResume}
                 tabIndex={-1}
-                aria-label="Upload current resume PDF"
+                aria-label="Resume PDF"
               />
 
               <button
@@ -307,31 +325,26 @@ export function ProfilePage() {
                 className={`profile-upload-target resume-upload-card${hasResume ? ' has-resume' : ''}`}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                aria-label={hasResume ? 'Replace current resume PDF' : 'Choose a resume PDF'}
-                aria-describedby={`profile-resume-upload-description${errors.baseResumeHtml ? ' profile-resume-error' : ''}`}
-                aria-invalid={Boolean(errors.baseResumeHtml)}
+                aria-label={hasResume ? 'Replace PDF' : 'Choose PDF'}
+                aria-describedby={`profile-resume-upload-description${errors.baseResumeHtml ? ' profile-resume-error' : ''}${importError ? ' profile-import-error' : ''}`}
+                aria-invalid={Boolean(errors.baseResumeHtml || importError)}
               >
                 <span className="resume-upload-icon" aria-hidden="true">
                   {hasResume ? <FileText size={24} /> : <Upload size={24} />}
                 </span>
                 <span className="resume-upload-copy">
                   <span className="resume-upload-title">
-                    {hasResume ? 'Current resume is ready' : 'Upload your current resume'}
+                    {hasResume ? 'Base resume saved' : 'Upload your resume'}
                   </span>
                   <span id="profile-resume-upload-description" className="resume-upload-description">
-                    PDF only, up to 4 MB. Text is extracted in your browser, then placed into the locked
-                    base template and checked in two LLM review passes.
+                    {hasResume
+                      ? `Locked one-page template · ${resumeLength.toLocaleString()} characters`
+                      : "Text-based PDF, up to 4 MB. Scans can't be read."}
                   </span>
-                  {hasResume && (
-                    <span className="resume-template-status">
-                      <CheckCircle size={14} aria-hidden="true" />
-                      <span>base_resume.html · {resumeLength.toLocaleString()} characters</span>
-                    </span>
-                  )}
                 </span>
                 <span className="profile-upload-cta" aria-hidden="true">
                   {!isImporting && <Upload size={16} />}
-                  {isImporting ? 'Importing and checking…' : hasResume ? 'Replace PDF' : 'Choose PDF'}
+                  {isImporting ? 'Importing…' : hasResume ? 'Replace PDF' : 'Choose PDF'}
                 </span>
               </button>
 
@@ -343,7 +356,7 @@ export function ProfilePage() {
                     onClick={() => setPreviewOpen(true)}
                   >
                     <Eye size={16} aria-hidden="true" />
-                    Preview current resume
+                    Preview
                   </button>
                 </div>
               )}
@@ -352,7 +365,7 @@ export function ProfilePage() {
                 <span id="profile-resume-error" className="field-error-msg" role="alert">{errors.baseResumeHtml.message}</span>
               )}
               {importError && (
-                <div className="resume-import-message error" role="alert">{importError}</div>
+                <div id="profile-import-error" className="resume-import-message error" role="alert">{importError}</div>
               )}
 
               <ResumeImportProgress activeStage={importStage} report={importReport} />
@@ -363,22 +376,24 @@ export function ProfilePage() {
               aria-labelledby="profile-identity-title"
             >
               <header className="profile-section-header">
-                <h2 id="profile-identity-title" className="profile-section-title">Identity</h2>
+                <h2 id="profile-identity-title" className="profile-section-title">Name</h2>
               </header>
               <div className="profile-field-row">
                 <Input
                   id="input-firstName"
-                  label="First Name"
+                  label="First name"
                   required
-                  placeholder="e.g. Ajay"
+                  placeholder="Ajay"
+                  autoComplete="given-name"
                   error={errors.firstName?.message}
                   {...firstNameField}
                 />
                 <Input
                   id="input-lastName"
-                  label="Last Name"
+                  label="Last name"
                   required
-                  placeholder="e.g. Sharma"
+                  placeholder="Sharma"
+                  autoComplete="family-name"
                   error={errors.lastName?.message}
                   {...lastNameField}
                 />
@@ -395,7 +410,7 @@ export function ProfilePage() {
                   aria-expanded={advancedOpen}
                   aria-controls="advanced-settings-panel"
                 >
-                  <span>Advanced Settings</span>
+                  <span>Advanced</span>
                   <ChevronDown size={18} className="profile-disclosure-icon" aria-hidden="true" />
                 </button>
               </h2>
@@ -411,24 +426,26 @@ export function ProfilePage() {
                   <div className="profile-field-row">
                     <Input
                       id="input-maxgrowthpct"
-                      label="Max Growth %"
+                      label="Max growth %"
                       type="number"
-                      helperText="How aggressively the AI can expand resume content."
+                      min={1}
+                      max={100}
+                      helperText="Soft limit on how much longer rewritten text may run."
                       error={errors.maxgrowthpct?.message}
                       {...maxGrowthField}
                     />
                     <Input
                       id="input-companynamefallback"
-                      label="Company Name Fallback"
-                      helperText="Used if JD doesn't mention company name."
+                      label="Company fallback"
+                      helperText="Used when the job description names no company."
                       error={errors.companynamefallback?.message}
                       {...companyFallbackField}
                     />
                   </div>
                   <Input
                     id="input-roletitlefallback"
-                    label="Role Title Fallback"
-                    helperText="Used if JD doesn't mention role title."
+                    label="Role fallback"
+                    helperText="Used when the job description names no role."
                     error={errors.roletitlefallback?.message}
                     {...roleFallbackField}
                   />
@@ -457,11 +474,11 @@ export function ProfilePage() {
                 <span className="profile-progress-value" style={{ width: `${completeness}%` }} />
               </div>
 
-              <p id="profile-readiness-summary" className="profile-readiness-summary">
-                {completeness === 100
-                  ? 'Profile complete. You are ready to generate resumes.'
-                  : 'Complete the required items before generating a resume.'}
-              </p>
+              {completeness < 100 && (
+                <p id="profile-readiness-summary" className="profile-readiness-summary">
+                  Add the missing items to start generating.
+                </p>
+              )}
 
               <ul className="profile-checklist">
                 {requiredItems.map((item) => (
@@ -471,7 +488,7 @@ export function ProfilePage() {
                       : <Circle size={18} aria-hidden="true" />}
                     <span className="profile-checklist-label">{item.label}</span>
                     <span className="profile-checklist-state">
-                      {item.complete ? 'Complete' : 'Required'}
+                      {item.complete ? 'Added' : 'Missing'}
                     </span>
                   </li>
                 ))}
@@ -483,12 +500,12 @@ export function ProfilePage() {
                   variant="primary"
                   size="lg"
                   loading={isSaving}
-                  disabled={isSaving || isImporting}
+                  disabled={isSaving || isImporting || saved}
                   className={`profile-save-button${saved ? ' is-saved' : ''}`}
-                  style={saved ? { background: 'var(--color-success)', pointerEvents: 'none' } : undefined}
-                  aria-describedby="profile-readiness-summary"
+                  style={saved ? { background: 'var(--color-success)' } : undefined}
+                  aria-describedby={completeness < 100 ? 'profile-readiness-summary' : undefined}
                 >
-                  {saved ? 'Saved ✓' : isSaving ? 'Saving…' : 'Save Profile'}
+                  {saved ? 'Saved' : isSaving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
@@ -501,17 +518,17 @@ export function ProfilePage() {
       <Modal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        title={pdfPreviewUrl ? 'Your uploaded resume (original PDF)' : 'Current resume preview'}
+        title={pdfPreviewUrl ? 'Your uploaded PDF' : 'Base resume'}
       >
         {pdfPreviewUrl ? (
           <iframe
-            title="Your uploaded resume"
+            title="Your uploaded PDF"
             src={pdfPreviewUrl}
             className="profile-preview-frame profile-preview-frame-pdf"
           />
         ) : (
           <ResumeDocument
-            title="Current resume preview"
+            title="Base resume"
             html={watchedValues.baseResumeHtml || ''}
           />
         )}

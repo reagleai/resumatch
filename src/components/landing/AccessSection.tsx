@@ -43,7 +43,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
   const handleUnlock = useCallback(() => {
     if (failedAttempts >= MAX_ATTEMPTS) {
       setIsLockedOut(true)
-      setError('Too many failed attempts. Reload the page to try again.')
+      setError('Too many attempts. Reload the page to try again.')
       return
     }
     const now = Date.now()
@@ -65,7 +65,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
         failedAttempts++
         if (failedAttempts >= MAX_ATTEMPTS) {
           setIsLockedOut(true)
-          setError('Too many failed attempts. Reload the page to try again.')
+          setError('Too many attempts. Reload the page to try again.')
         } else {
           const backoffMs = getBackoffMs()
           if (backoffMs > 0) {
@@ -103,7 +103,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
   // Supabase (resumatch_waitlist). Replaces the former n8n webhook.
   const handleWaitlistSubmit = useCallback(async () => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError('Please enter a valid email address')
+      setEmailError('Enter a valid email address')
       return
     }
     setIsSubmitting(true)
@@ -127,11 +127,11 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
         setIsSubmitted(true)
       } else {
         setIsSubmitting(false)
-        setEmailError('Something went wrong. Please try again.')
+        setEmailError("Couldn't submit. Try again.")
       }
     } catch {
       setIsSubmitting(false)
-      setEmailError('Something went wrong. Please try again.')
+      setEmailError("Couldn't submit. Check your connection.")
     }
   }, [email, preferences])
 
@@ -154,7 +154,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-divider)'; e.currentTarget.style.boxShadow = 'none' }}
           >
             <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text-muted)' }}>
-              Get Early Access
+              Get early access
             </span>
           </button>
         ) : (
@@ -164,14 +164,12 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
               <>
                 {!isSubmitted ? (
                   <div style={{ animation: 'cardIn 0.3s ease both' }}>
-                    <span className="section-label" style={{ textAlign: 'center', display: 'block' }}>Early Access</span>
-
-                    <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 500, color: 'var(--color-text)', letterSpacing: '0.5px', wordSpacing: '0.1em', marginBottom: 'var(--space-1)' }}>
-                      Resumatch is in early access
+                    <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 500, color: 'var(--color-text)', letterSpacing: '0.5px', wordSpacing: '0.1em', marginBottom: 'var(--space-2)' }}>
+                      Join the early access list
                     </h3>
 
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: 'var(--space-6)' }}>
-                      We're onboarding a small group of job seekers to test and improve the product. Leave your email and we'll reach out when your spot is ready.
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 'var(--space-6)' }}>
+                      Access opens in small batches. We'll email you when a spot is free.
                     </p>
 
                     {/* Email input */}
@@ -205,7 +203,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                     {/* Preference checkboxes */}
                     <div style={{ textAlign: 'left', marginBottom: 'var(--space-4)' }}>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', display: 'block', textAlign: 'left', fontStyle: 'italic' }}>
-                        If you could shape how this tool works for you, what would you pick?
+                        Optional — what should we build first?
                       </span>
 
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
@@ -216,8 +214,8 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px', cursor: 'pointer', marginTop: '3px', flexShrink: 0 }}
                         />
                         <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>Always include specific keywords I care about</span>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', fontStyle: 'italic', lineHeight: 1.4 }}>e.g. your target role, tools, or stack you want visible</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>Always include my keywords</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', fontStyle: 'italic', lineHeight: 1.4 }}>Target role, tools, stack</span>
                         </span>
                       </label>
 
@@ -229,8 +227,8 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px', cursor: 'pointer', marginTop: '3px', flexShrink: 0 }}
                         />
                         <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>Reframe my experience more boldly when it fits</span>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', fontStyle: 'italic', lineHeight: 1.4 }}>e.g. lead → drove, worked on → owned and shipped</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>Reframe my experience more boldly</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', fontStyle: 'italic', lineHeight: 1.4 }}>“worked on” → “owned and shipped”</span>
                         </span>
                       </label>
                     </div>
@@ -251,7 +249,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                       onMouseEnter={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '0.9' }}
                       onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                     >
-                      {isSubmitting ? 'Submitting…' : 'Request Access →'}
+                      {isSubmitting ? 'Submitting…' : 'Request access'}
                     </button>
 
                     {/* Switch to password */}
@@ -266,7 +264,7 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                       onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
                       onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                     >
-                      Already have access? →
+                      Already have a password?
                     </button>
                   </div>
                 ) : (
@@ -277,10 +275,10 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                         <ShieldCheck size={24} style={{ color: 'var(--color-primary)' }} />
                       </div>
                       <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 500, color: 'var(--color-text)', letterSpacing: '0.5px', wordSpacing: '0.1em', marginBottom: 'var(--space-1)' }}>
-                        You're on the list.
+                        You're on the list
                       </h3>
                       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-                        We'll reach out when your spot is ready. Keep an eye on your inbox.
+                        We'll email you when a spot is free.
                       </p>
                     </div>
                   </div>
@@ -309,10 +307,10 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                     {isLockedOut ? <ShieldAlert size={24} style={{ color: 'var(--color-error)' }} /> : <Lock size={24} style={{ color: 'var(--color-primary)' }} />}
                   </div>
                   <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 500, color: isLockedOut ? 'var(--color-error)' : 'var(--color-text)', letterSpacing: '0.5px', wordSpacing: '0.1em', marginBottom: 'var(--space-1)' }}>
-                    {isLockedOut ? 'Access locked' : 'Access the tool'}
+                    {isLockedOut ? 'Access locked' : 'Enter your password'}
                   </h3>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>
-                    {isLockedOut ? 'Reload the page to try again' : 'Enter the password to open Resumatch'}
+                    {isLockedOut ? 'Reload the page to try again' : 'Your session ends when you close the tab'}
                   </p>
                 </div>
 
@@ -368,12 +366,8 @@ export function AccessSection({ onUnlock }: AccessSectionProps) {
                   onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.opacity = '0.9' }}
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                 >
-                  {isLockedOut ? 'Locked - Reload Page' : cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s…` : isValidating ? 'Verifying…' : 'Unlock'}
+                  {isLockedOut ? 'Reload the page' : cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s…` : isValidating ? 'Checking…' : 'Unlock'}
                 </button>
-
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', marginTop: 'var(--space-4)' }}>
-                  Session lasts until you close the tab
-                </p>
               </div>
             )}
           </>

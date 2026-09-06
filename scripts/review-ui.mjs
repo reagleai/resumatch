@@ -1,5 +1,5 @@
 /** Local browser review with Chrome DevTools Protocol; no added dependencies.
- * Start isolated headless Chrome with --remote-debugging-port=9223 first.
+ * Start isolated headless Chrome with --remote-debugging-port=9224 first.
  * node scripts/review-ui.mjs capture /generator?review=1 1440 900 dark
  */
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url'
 export const outputDirectory = join(tmpdir(), 'resumatch-redesign-review')
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export async function connect(port = 9223) {
+export async function connect(port = 9224) {
   const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
   const target = targets.find((entry) => entry.type === 'page')
   if (!target) throw new Error('No review browser tab is available.')
@@ -54,18 +54,35 @@ export async function connect(port = 9223) {
 }
 
 export async function openPage(browser, path, width, height, theme = 'dark', base = 'http://127.0.0.1:4173') {
+  const targetUrl = new URL(path, base)
+  const expectedLocation = `${targetUrl.origin}${targetUrl.pathname}${targetUrl.search}`
   await browser.send('Emulation.setDeviceMetricsOverride', {
     width, height, deviceScaleFactor: 1, mobile: false,
   })
   await browser.send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-color-scheme', value: theme }, { name: 'prefers-reduced-motion', value: 'reduce' }],
   })
-  await browser.send('Page.navigate', { url: base + path })
+  // Set preference before navigation so the app's initialization effect and
+  // the capture helper cannot race one another between theme scenarios.
+  await browser.evaluate(`try { localStorage.setItem('rt-theme', ${JSON.stringify(theme)}) } catch {}`)
+  await browser.send('Page.navigate', { url: targetUrl.href })
   const started = Date.now()
+  let ready = false
   while (Date.now() - started < 15000) {
     await pause(100)
-    if (await browser.evaluate(`Boolean(document.querySelector(${JSON.stringify(path === '/' ? '.landing-section' : '.app-shell h1')}))`)) break
+    try {
+      ready = await browser.evaluate(`
+        location.origin + location.pathname + location.search === ${JSON.stringify(expectedLocation)} &&
+        document.readyState !== 'loading' &&
+        Boolean(document.querySelector('#root > *')) &&
+        Boolean(document.querySelector('.app-shell h1, .landing-section'))
+      `)
+      if (ready) break
+    } catch (error) {
+      if (!String(error).includes('Inspected target navigated or closed')) throw error
+    }
   }
+  if (!ready) throw new Error(`Timed out waiting for ${targetUrl.href} to render.`)
   await browser.evaluate(`(async () => {
     localStorage.setItem('rt-theme', ${JSON.stringify(theme)});
     if (document.querySelector('.app-shell')) {
@@ -96,9 +113,17 @@ export async function geometry(browser) {
     }).map(describe);
     const main = document.querySelector('.app-main');
     const save = document.querySelector('.profile-save-button');
+    const primaryButton = document.querySelector('.btn-primary-variant, .preview-download-btn, .preview-download-btn-hero');
+    const field = document.querySelector('.field-input');
+    const activeNav = [...document.querySelectorAll('.app-primary-nav-item.is-active, .mobile-tabbar-item.is-active')]
+      .find(visible);
     const r = save?.getBoundingClientRect();
     return {
       route: location.pathname + location.search,
+      readyState: document.readyState,
+      rootChildren: document.querySelector('#root')?.children.length ?? null,
+      rootText: document.querySelector('#root')?.textContent?.trim().slice(0, 120) ?? null,
+      scripts: [...document.scripts].map(script => script.src || 'inline'),
       viewport: [innerWidth, innerHeight],
       document: [document.documentElement.clientWidth, document.documentElement.scrollWidth],
       main: main ? [main.clientWidth, main.scrollWidth, main.clientHeight, main.scrollHeight] : null,
@@ -107,17 +132,20 @@ export async function geometry(browser) {
       font: getComputedStyle(document.body).fontFamily,
       loadedFonts: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family),
       primary: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim(),
+      primaryButton: primaryButton ? { color: getComputedStyle(primaryButton).color, background: getComputedStyle(primaryButton).backgroundColor } : null,
+      fieldBorder: field ? getComputedStyle(field).borderColor : null,
+      activeNav: activeNav ? { color: getComputedStyle(activeNav).color, background: getComputedStyle(activeNav).backgroundColor } : null,
       saveButton: r ? { top: r.top, bottom: r.bottom, height: r.height } : null,
     };
   })()`)
 }
 
 async function main() {
-  const [command = 'capture', route = '/generator?review=1', width = '1440', height = '900', theme = 'dark'] = process.argv.slice(2)
+  const [command = 'capture', route = '/generator?review=1', width = '1440', height = '900', theme = 'dark', base = 'http://127.0.0.1:4173'] = process.argv.slice(2)
   const browser = await connect()
   try {
     if (command !== 'capture') throw new Error('Use the capture command or import helpers for an interaction review.')
-    await openPage(browser, route, Number(width), Number(height), theme)
+    await openPage(browser, route, Number(width), Number(height), theme, base)
     const name = `${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'landing'}-${width}x${height}-${theme}`
     const { targetInfos } = await browser.send('Target.getTargets')
     const frameInfo = []

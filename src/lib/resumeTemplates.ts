@@ -66,8 +66,7 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
   {
     id: 'base',
     name: 'Classic',
-    description:
-      'The default template the generator uses. Hand-tuned to fill exactly one A4 page, with per-point character limits enforced so it never overflows. All sample content is generic.',
+    description: 'Used for every run. Tuned to one A4 page; these limits are enforced.',
     status: 'active',
     previewHtml: baseRaw,
     budgets: measureBudgets(baseRaw),
@@ -75,16 +74,14 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
   {
     id: 'modern',
     name: 'Modern',
-    description:
-      'Accent-coloured section headers and a cleaner sans-serif layout. Generic sample content, sized to fill a single A4 page like Classic.',
+    description: 'Sans-serif layout with accent-coloured section headers.',
     status: 'preview',
     previewHtml: modernRaw,
   },
   {
     id: 'compact',
     name: 'Compact',
-    description:
-      'A denser serif layout that packs more roles and detail onto one page. Generic sample content, sized to fill a single A4 page.',
+    description: 'Denser serif layout that fits more roles on the page.',
     status: 'preview',
     previewHtml: compactRaw,
   },

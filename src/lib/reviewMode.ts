@@ -2,6 +2,9 @@ import type {
   GenerateInput,
   GeneratorResult,
   ProfileState,
+  ResumeImportReport,
+  ResumeImportResponse,
+  ResumeImportStageId,
   SavedResumePdf,
   SavedResumeWithPdf,
 } from '@/types'
@@ -22,6 +25,16 @@ let baseResumeHtmlPromise: Promise<string> | null = null
 let reviewProfile: ProfileState | null = null
 let reviewHistory: SavedResumeWithPdf[] | null = null
 
+export const REVIEW_IMPORT_REPORT: ResumeImportReport = {
+  pages: 2,
+  extractedCharacters: 6842,
+  reviewPasses: 2,
+  audits: [
+    { pass: 1, missingFacts: [], unsupportedFacts: [], correctionsMade: ['Restored one project metric from the source PDF.'], confidence: 0.91 },
+    { pass: 2, missingFacts: [], unsupportedFacts: [], correctionsMade: [], confidence: 0.97 },
+  ],
+}
+
 /** Whether this browser session was opened through the development review URL. */
 export function isReviewMode(): boolean {
   return reviewModeEnabled
@@ -40,6 +53,23 @@ export function getReviewParam(name: string): string | null {
 async function loadBaseResumeHtml(): Promise<string> {
   baseResumeHtmlPromise ??= import('../../base_resume.html?raw').then((module) => module.default)
   return baseResumeHtmlPromise
+}
+
+/** Exercise the complete import UI locally without uploading a document. */
+export async function createReviewImportFixture(
+  onStage: (stage: ResumeImportStageId) => void,
+): Promise<ResumeImportResponse> {
+  const stages: ResumeImportStageId[] = ['reading', 'extract', 'audit-1', 'audit-2', 'render']
+  for (const stage of stages) {
+    onStage(stage)
+    await new Promise((resolve) => setTimeout(resolve, 220))
+  }
+  return {
+    firstName: 'Alex',
+    lastName: 'Morgan',
+    baseResumeHtml: await loadBaseResumeHtml(),
+    report: REVIEW_IMPORT_REPORT,
+  }
 }
 
 function cloneProfile(profile: ProfileState): ProfileState {

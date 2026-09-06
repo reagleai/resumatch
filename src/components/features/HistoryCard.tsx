@@ -21,8 +21,11 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const deletePromptId = useId()
+  const recordTitleId = useId()
+  const recordMetaId = useId()
+  const recordSnippetId = useId()
   const deleteTriggerRef = useRef<HTMLButtonElement>(null)
-  const confirmDeleteRef = useRef<HTMLButtonElement>(null)
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null)
   const pdf = resume.resume_pdfs?.[0] ?? null
   const isPdf = resume.format === 'pdf'
   const createdAt = new Date(resume.created_at)
@@ -32,7 +35,7 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
     : null
 
   useEffect(() => {
-    if (confirmDelete) confirmDeleteRef.current?.focus()
+    if (confirmDelete) cancelDeleteRef.current?.focus()
   }, [confirmDelete])
 
   const handleDeleteClick = () => {
@@ -65,7 +68,7 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
       document.body.appendChild(anchor)
       anchor.click()
       document.body.removeChild(anchor)
-      URL.revokeObjectURL(blobUrl)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
     } catch {
       window.open(pdf.public_url, '_blank', 'noopener,noreferrer')
     } finally {
@@ -90,22 +93,22 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
           className="history-record-trigger"
           onClick={onView}
           disabled={isDeleting}
-          aria-label={`Preview ${resume.role_title} resume for ${resume.company_name}`}
+          aria-labelledby={recordTitleId}
+          aria-describedby={`${recordMetaId}${jdSnippet ? ` ${recordSnippetId}` : ''}`}
         >
-          <span className="history-record-title">
+          <span id={recordTitleId} className="history-record-title">
             <span className="history-role-title">{resume.role_title}</span>
             <span className="history-title-separator" aria-hidden="true">·</span>
             <span className="history-company-name">{resume.company_name}</span>
           </span>
 
-          <span className="history-record-meta">
+          <span id={recordMetaId} className="history-record-meta">
             <time dateTime={resume.created_at} title={createdAt.toLocaleString()}>
               {timeAgo(createdAt)}
             </time>
-            {pdf && <span className="history-pdf-status">PDF saved</span>}
           </span>
 
-          {jdSnippet && <span className="history-jd-snippet">{jdSnippet}</span>}
+          {jdSnippet && <span id={recordSnippetId} className="history-jd-snippet">{jdSnippet}</span>}
         </button>
 
         {!confirmDelete && (
@@ -115,7 +118,6 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
               onClick={onView}
               disabled={isDeleting}
               aria-label="Preview resume"
-              title="Preview resume"
               className="history-action-btn history-view-action"
             >
               <Eye size={16} aria-hidden="true" />
@@ -128,7 +130,6 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
                 onClick={handleDownload}
                 disabled={isDownloading || isDeleting}
                 aria-label={isDownloading ? 'Downloading PDF' : 'Download PDF'}
-                title="Download PDF"
                 className="history-action-btn history-download-action"
               >
                 {isDownloading ? (
@@ -149,7 +150,7 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
               disabled={isDeleting}
               aria-label="Delete resume"
               aria-controls={deletePromptId}
-              title="Delete resume"
+              aria-expanded={confirmDelete}
               className="history-action-btn history-delete-action"
             >
               {isDeleting ? (
@@ -173,15 +174,10 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
         >
           <div className="history-delete-copy">
             <strong id={`${deletePromptId}-label`}>Delete this resume?</strong>
-            <span>
-              {pdf
-                ? 'The saved resume and its PDF will be removed.'
-                : 'The saved resume will be removed.'}
-            </span>
+            <span>This can't be undone.</span>
           </div>
           <div className="history-delete-actions">
             <button
-              ref={confirmDeleteRef}
               type="button"
               onClick={handleConfirm}
               disabled={isDeleting}
@@ -190,9 +186,10 @@ export function HistoryCard({ resume, index, isDeleting, onView, onDelete }: His
               {isDeleting && (
                 <Loader2 className="history-action-spinner" size={14} aria-hidden="true" />
               )}
-              Delete resume
+              Delete
             </button>
             <button
+              ref={cancelDeleteRef}
               type="button"
               onClick={handleCancel}
               disabled={isDeleting}

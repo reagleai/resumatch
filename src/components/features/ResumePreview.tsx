@@ -5,6 +5,7 @@ import type { GeneratorResult, GeneratorStatus } from '@/types'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingView } from '@/components/features/LoadingView'
 import { ResumeDocument } from '@/components/features/ResumeDocument'
+import { RewriteScope } from '@/components/features/RewriteScope'
 import { downloadHtml, formatTimestamp } from '@/lib/utils'
 import { useToast } from '@/hooks/useToast'
 
@@ -20,6 +21,7 @@ interface ResumePreviewProps {
 export function ResumePreview({ result, status, loadingStep, error, onRetry, onClear }: ResumePreviewProps) {
   const { toast } = useToast()
   const [downloadSuccess, setDownloadSuccess] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   if (status === 'loading') {
     return <LoadingView currentStep={loadingStep} />
@@ -30,9 +32,10 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
       <div className="resume-preview-state">
         <EmptyState
           icon="alert-triangle"
+          tone="error"
           heading="Generation failed"
-          body={error || 'An unexpected error occurred.'}
-          action={{ label: 'Try Again', onClick: onRetry }}
+          body={error || 'The server did not return a reason.'}
+          action={{ label: 'Try again', onClick: onRetry }}
         />
       </div>
     )
@@ -41,21 +44,33 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
   if (status === 'success' && result) {
     const isPdf = result.format === 'pdf'
 
-    const handleDownload = () => {
-      if (isPdf && result.pdfBlobUrl) {
-        const a = document.createElement('a')
-        a.href = result.pdfBlobUrl
-        a.download = result.filename || 'tailored-resume.pdf'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-      } else {
-        downloadHtml(result.html, result.filename)
+    const handleDownload = async () => {
+      if (isDownloading) return
+      setIsDownloading(true)
+      try {
+        if (isPdf && result.pdfBlobUrl) {
+          const response = await fetch(result.pdfBlobUrl)
+          if (!response.ok) throw new Error(`Download failed: ${response.status}`)
+          const blobUrl = URL.createObjectURL(await response.blob())
+          const anchor = document.createElement('a')
+          anchor.href = blobUrl
+          anchor.download = result.filename || 'tailored-resume.pdf'
+          document.body.appendChild(anchor)
+          anchor.click()
+          document.body.removeChild(anchor)
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+        } else {
+          downloadHtml(result.html, result.filename)
+        }
+        setDownloadSuccess(true)
+        toast('Downloaded', 'success')
+        setTimeout(() => setDownloadSuccess(false), 2000)
+      } catch {
+        if (result.pdfBlobUrl) window.open(result.pdfBlobUrl, '_blank', 'noopener,noreferrer')
+        toast('Opened in a new tab — save it from there.', 'info')
+      } finally {
+        setIsDownloading(false)
       }
-      // Show success state on button
-      setDownloadSuccess(true)
-      toast('Resume downloaded ✓', 'success')
-      setTimeout(() => setDownloadSuccess(false), 2000)
     }
 
     const handlePrint = () => {
@@ -63,17 +78,13 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
         if (result.pdfBlobUrl) {
           window.open(result.pdfBlobUrl, '_blank', 'noopener,noreferrer')
         }
-        toast('PDF opened in new tab. Use Ctrl+P to print.', 'info')
+        toast('Opened in a new tab', 'info')
       } else {
         const sanitizedHtml = DOMPurify.sanitize(result.html, { WHOLE_DOCUMENT: true })
-        const printWindow = window.open('', '_blank', 'noopener')
-        if (printWindow) {
-          printWindow.document.write(sanitizedHtml)
-          printWindow.document.close()
-          printWindow.focus()
-          printWindow.print()
-        }
-        toast('Use your browser\u2019s Save as PDF option.', 'info')
+        const printUrl = URL.createObjectURL(new Blob([sanitizedHtml], { type: 'text/html;charset=utf-8' }))
+        window.open(printUrl, '_blank', 'noopener,noreferrer')
+        setTimeout(() => URL.revokeObjectURL(printUrl), 60_000)
+        toast('Opened in a new tab — use Print to save as PDF.', 'info')
       }
     }
 
@@ -83,8 +94,8 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
           <div className="preview-context">
             <FileText size={16} aria-hidden="true" />
             <span>
-              <small>Tailored for</small>
               <strong>{result.roletitle} · {result.companyname}</strong>
+              <small>{formatTimestamp(result.timestamp)}</small>
             </span>
             {isPdf && (
               <span className="preview-format-badge">PDF</span>
@@ -93,14 +104,16 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
 
           {!isPdf && (
             <div className="preview-toolbar-actions">
-              <button onClick={handleDownload} className="preview-download-btn">
-                {downloadSuccess
+              <button onClick={handleDownload} disabled={isDownloading} className="preview-download-btn">
+                {isDownloading
+                  ? <>Downloading…</>
+                  : downloadSuccess
                   ? <><CheckCircle size={15} aria-hidden="true" /> Downloaded</>
                   : <><Download size={15} aria-hidden="true" /> Download HTML</>
                 }
               </button>
               <button onClick={handlePrint} className="preview-action-btn">
-                <Printer size={14} aria-hidden="true" /> Print PDF
+                <Printer size={14} aria-hidden="true" /> Print
               </button>
               <button onClick={onClear} className="preview-action-btn">
                 <RotateCcw size={14} aria-hidden="true" /> Clear
@@ -113,18 +126,20 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
           <div className="resume-ready-state">
             <div className="resume-ready-icon"><FileText size={30} aria-hidden="true" /></div>
             <div className="resume-ready-copy">
-              <span className="resume-ready-kicker"><CheckCircle size={14} aria-hidden="true" /> Generation complete</span>
-              <h3>Your tailored resume is ready</h3>
+              <h3>Resume ready</h3>
               <p>{result.filename}</p>
             </div>
 
             <div className="resume-ready-actions">
               <button
                 onClick={handleDownload}
+                disabled={isDownloading}
                 className="preview-download-btn-hero"
                 data-success={downloadSuccess}
               >
-                {downloadSuccess
+                {isDownloading
+                  ? <>Downloading…</>
+                  : downloadSuccess
                   ? <><CheckCircle size={18} aria-hidden="true" /> Downloaded</>
                   : <><Download size={18} aria-hidden="true" /> Download PDF</>
                 }
@@ -142,25 +157,23 @@ export function ResumePreview({ result, status, loadingStep, error, onRetry, onC
         ) : (
           <ResumeDocument
             html={result.html}
-            title="Tailored Resume Preview"
+            title={`Tailored resume for ${result.roletitle} at ${result.companyname}`}
           />
         )}
-
-        <div className="preview-metadata">
-          Generated {formatTimestamp(result.timestamp)} · {result.companyname} · {result.roletitle}
-        </div>
       </div>
     )
   }
 
-  // Idle
+  // Idle — the scope map answers "what will this change?" in place of the
+  // sentence that previously restated the panel heading.
   return (
     <div className="resume-preview-state is-idle">
       <EmptyState
         icon="file-text"
-        heading="Your tailored resume will appear here"
-        body="Add a job description, then generate to see and download the result."
-      />
+        heading="No resume yet"
+      >
+        <RewriteScope />
+      </EmptyState>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '@/store/appStore'
+import { readableError } from '@/lib/utils'
 import { useToast } from '@/hooks/useToast'
 import { HISTORY_QUERY_KEY } from '@/hooks/useResumeHistory'
 import { LOADING_STEPS } from '@/lib/constants'
@@ -39,17 +40,17 @@ export function useGenerate() {
     const { profile, generator } = store
 
     if (!store.isProfileComplete()) {
-      toast('Profile incomplete. Please fill your profile before generating.', 'error')
+      toast('Finish your profile first', 'error')
       return
     }
     if (!generator.jd.trim()) {
-      toast('Please enter a job description.', 'error')
+      toast('Add a job description', 'error')
       return
     }
 
     const now = Date.now()
     if (now - lastCallRef.current < COOLDOWN_MS) {
-      toast('Please wait a few seconds between generations.', 'info')
+      toast('Wait a few seconds before generating again', 'info')
       return
     }
     lastCallRef.current = now
@@ -92,7 +93,7 @@ export function useGenerate() {
 
         await prependReviewHistoryFixture(history)
         queryClient.invalidateQueries({ queryKey: HISTORY_QUERY_KEY })
-        toast(`Resume generated for ${result.roletitle} at ${result.companyname} ✓`, 'success')
+        toast(`Resume ready for ${result.roletitle}`, 'success')
         return
       }
 
@@ -106,7 +107,7 @@ export function useGenerate() {
         throw new Error(body.error || `Server returned HTTP ${res.status}`)
       }
       const { jobId } = (await res.json()) as { jobId: string }
-      if (!jobId) throw new Error('No job id returned by the server.')
+      if (!jobId) throw new Error('The server did not start a job.')
 
       const start = Date.now()
       // ── Poll loop ──────────────────────────────────────────────
@@ -115,7 +116,7 @@ export function useGenerate() {
         if (genId !== generationIdRef.current) return
         await sleep(POLL_INTERVAL_MS)
         if (genId !== generationIdRef.current) return
-        if (Date.now() - start > MAX_POLL_MS) throw new Error('Generation timed out.')
+        if (Date.now() - start > MAX_POLL_MS) throw new Error('Generation timed out after 10 minutes.')
 
         const jres = await fetch(`/api/jobs/${jobId}`)
         if (!jres.ok) continue // transient — keep polling
@@ -148,17 +149,19 @@ export function useGenerate() {
           })
 
           queryClient.invalidateQueries({ queryKey: HISTORY_QUERY_KEY })
-          toast(`Resume PDF generated for ${r.roletitle} at ${r.companyname} ✓`, 'success')
+          toast(`Resume ready for ${r.roletitle}`, 'success')
           return
         }
 
         if (job.status === 'error') {
-          throw new Error(job.error || 'Generation failed.')
+          throw new Error(job.error || 'The pipeline stopped without a reason.')
         }
       }
     } catch (err) {
       if (genId !== generationIdRef.current) return
-      const msg = (err as Error).message || 'An unexpected error occurred.'
+      // A failed request should be immediately retryable from the error CTA.
+      lastCallRef.current = 0
+      const msg = readableError((err as Error).message || 'The server did not return a reason.')
       store.setGeneratorError(msg)
       toast(`Generation failed: ${msg.substring(0, 80)}`, 'error')
     }

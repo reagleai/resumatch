@@ -13,18 +13,17 @@ import type { ResumeImportResponse, ResumeImportStageId } from '@/types'
 
 export interface ResumeImportStage {
   id: ResumeImportStageId
+  /** Self-contained: the stepper shows no second line of hint text. */
   label: string
-  /** Hint shown under the active stage. */
-  hint: string
 }
 
 /** Ordered stages shown in the UI stepper. */
 export const RESUME_IMPORT_STAGES: ResumeImportStage[] = [
-  { id: 'reading', label: 'Reading your PDF', hint: 'Extracting text in your browser' },
-  { id: 'extract', label: 'Extracting details', hint: 'Pulling roles, projects, skills & contact info' },
-  { id: 'audit-1', label: 'Accuracy check 1 of 2', hint: 'Comparing against your original resume' },
-  { id: 'audit-2', label: 'Accuracy check 2 of 2', hint: 'Fixing any missed or altered facts' },
-  { id: 'render', label: 'Formatting into template', hint: 'Placing everything into base_resume.html' },
+  { id: 'reading', label: 'Reading the PDF in your browser' },
+  { id: 'extract', label: 'Finding roles, projects and skills' },
+  { id: 'audit-1', label: 'Checking against your PDF (1 of 2)' },
+  { id: 'audit-2', label: 'Fixing anything missed (2 of 2)' },
+  { id: 'render', label: 'Formatting' },
 ]
 
 export function stageIndex(id: ResumeImportStageId): number {
@@ -76,10 +75,10 @@ export async function runResumeImport(
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string }
-    throw new Error(body.error || `Import failed with HTTP ${res.status}`)
+    throw new Error(body.error || `Import failed (HTTP ${res.status}).`)
   }
   const { jobId } = (await res.json()) as { jobId?: string }
-  if (!jobId) throw new Error('No import job id returned by the server.')
+  if (!jobId) throw new Error('The server did not start an import.')
 
   onStage('extract') // the server begins extracting immediately
 
@@ -87,7 +86,7 @@ export async function runResumeImport(
   const start = Date.now()
   for (;;) {
     await sleep(POLL_INTERVAL_MS)
-    if (Date.now() - start > MAX_POLL_MS) throw new Error('Resume import timed out.')
+    if (Date.now() - start > MAX_POLL_MS) throw new Error('Import timed out. Try again.')
 
     const jres = await fetch(`/api/import-jobs/${jobId}`)
     if (!jres.ok) continue // transient — keep polling
@@ -97,6 +96,6 @@ export async function runResumeImport(
     if (stageId) onStage(stageId)
 
     if (job.status === 'complete' && job.result) return job.result
-    if (job.status === 'error') throw new Error(job.error || 'Resume import failed.')
+    if (job.status === 'error') throw new Error(job.error || 'Import failed. Try again.')
   }
 }

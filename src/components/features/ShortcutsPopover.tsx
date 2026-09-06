@@ -34,25 +34,13 @@ export function ShortcutsPopover() {
     <div style={{ position: 'relative' }}>
       <button
         ref={btnRef}
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Keyboard shortcuts"
-        aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls="shortcuts-popover"
         title="Keyboard shortcuts"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '36px',
-          height: '36px',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--color-text-faint)',
-          fontSize: 'var(--text-xs)',
-          fontWeight: 500,
-          transition: 'background var(--transition-interactive), color var(--transition-interactive)',
-        }}
+        className="app-icon-button shortcuts-trigger"
       >
         ⌘?
       </button>
@@ -61,7 +49,7 @@ export function ShortcutsPopover() {
         <div
           ref={popoverRef}
           id="shortcuts-popover"
-          role="dialog"
+          role="region"
           aria-label="Keyboard shortcuts"
           style={{
             position: 'absolute',
@@ -78,7 +66,7 @@ export function ShortcutsPopover() {
           }}
         >
           <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 500, marginBottom: 'var(--space-3)' }}>
-            Keyboard Shortcuts
+            Keyboard shortcuts
           </h3>
           {KEYBOARD_SHORTCUTS.map(({ keys, label }) => (
             <div

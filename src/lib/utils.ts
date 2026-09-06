@@ -53,3 +53,13 @@ export function extractDomain(url: string): string {
     return url
   }
 }
+
+/**
+ * Strip the internal `[stage]` prefix the pipeline puts on its errors, so a
+ * failure reads as a sentence in the UI. Server logs keep the full string.
+ */
+export function readableError(message: string): string {
+  const stripped = message.replace(/^\s*\[[a-zA-Z_-]+\]\s*/, '').trim()
+  if (!stripped) return message.trim()
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1)
+}

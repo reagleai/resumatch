@@ -11,29 +11,33 @@ interface ResumeImportProgressProps {
 
 /**
  * Shows what the import is doing right now (a per-stage stepper) and, once
- * done, what the two accuracy passes checked and fixed.
+ * done, a one-line summary of what the accuracy passes checked and fixed.
  */
 export function ResumeImportProgress({ activeStage, report }: ResumeImportProgressProps) {
   if (activeStage) {
     const activeIdx = stageIndex(activeStage)
     return (
-      <ol className="import-stepper" aria-label="Resume import progress">
-        {RESUME_IMPORT_STAGES.map((stage, idx) => {
-          const state = idx < activeIdx ? 'done' : idx === activeIdx ? 'active' : 'pending'
-          return (
-            <li key={stage.id} className={`import-step is-${state}`}>
-              <span className="import-step-icon" aria-hidden="true">
-                {state === 'done' && <Check size={13} />}
-                {state === 'active' && <Loader2 size={13} className="import-spin" />}
-              </span>
-              <span className="import-step-body">
-                <span className="import-step-label">{stage.label}</span>
-                {state === 'active' && <span className="import-step-hint">{stage.hint}</span>}
-              </span>
-            </li>
-          )
-        })}
-      </ol>
+      <>
+        <span className="sr-only" role="status" aria-live="polite">
+          {RESUME_IMPORT_STAGES[activeIdx]?.label}
+        </span>
+        <ol className="import-stepper" aria-label="Resume import progress">
+          {RESUME_IMPORT_STAGES.map((stage, idx) => {
+            const state = idx < activeIdx ? 'done' : idx === activeIdx ? 'active' : 'pending'
+            return (
+              <li key={stage.id} className={`import-step is-${state}`} aria-current={state === 'active' ? 'step' : undefined}>
+                <span className="import-step-icon" aria-hidden="true">
+                  {state === 'done' && <Check size={13} />}
+                  {state === 'active' && <Loader2 size={13} className="import-spin" />}
+                </span>
+                <span className="import-step-body">
+                  <span className="import-step-label">{stage.label}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </>
     )
   }
 
@@ -45,7 +49,7 @@ export function ResumeImportProgress({ activeStage, report }: ResumeImportProgre
   const totalCorrections = report.audits.reduce((sum, a) => sum + a.correctionsMade.length, 0)
   const toCheck = lastAudit
     ? [
-        ...lastAudit.missingFacts.map((f) => ({ kind: 'Possibly missing', text: f })),
+        ...lastAudit.missingFacts.map((f) => ({ kind: 'Missing', text: f })),
         ...lastAudit.unsupportedFacts.map((f) => ({ kind: 'Unverified', text: f })),
       ]
     : []
@@ -60,15 +64,18 @@ export function ResumeImportProgress({ activeStage, report }: ResumeImportProgre
           {totalCorrections > 0 && ` · ${totalCorrections} fix${totalCorrections === 1 ? '' : 'es'} applied`}
         </span>
         {confidencePct !== null && (
-          <span className={`import-confidence${confidencePct >= 85 ? ' is-high' : confidencePct >= 60 ? ' is-mid' : ' is-low'}`}>
-            {confidencePct}% confident
+          <span
+            className={`import-confidence${confidencePct >= 85 ? ' is-high' : confidencePct >= 60 ? ' is-mid' : ' is-low'}`}
+            title="How confident the final check was that the imported text matches your PDF."
+          >
+            {confidencePct}% match
           </span>
         )}
       </div>
 
       {toCheck.length > 0 && (
         <div className="import-summary-review">
-          <div className="import-summary-review-title">Worth a quick look before saving:</div>
+          <div className="import-summary-review-title">Check before saving</div>
           <ul>
             {toCheck.slice(0, 6).map((item, i) => (
               <li key={i}>
